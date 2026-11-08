@@ -1,0 +1,58 @@
+# openWakeWord training config for "يا يوبي".
+# Used by train.py from openWakeWord (see README.md in this folder).
+# Paths are relative to the folder you run training from (Colab: /content).
+
+model_name: "ya_yobi"
+
+# The synthetic generator is an English TTS, so we spell the Egyptian
+# pronunciation phonetically. Your real recordings (merge_real_voice.py)
+# teach the model the actual Arabic sound.
+target_phrase:
+  - "ya yobi"
+  - "yaa yoobi"
+  - "ya yoobee"
+
+# Near-misses Yobi must ignore
+custom_negative_phrases:
+  - "ya yousef"
+  - "ya bibi"
+  - "ya habibi"
+  - "yo baby"
+  - "jubilee"
+  - "you be"
+  - "yoga"
+  - "ya robi"
+  - "ya bob"
+  - "hobby"
+  - "yobs"
+
+n_samples: 20000          # synthetic positives (10k is fine for a first try)
+n_samples_val: 2000
+tts_batch_size: 50
+augmentation_batch_size: 16
+augmentation_rounds: 1
+
+piper_sample_generator_path: "./piper-sample-generator"
+output_dir: "./my_custom_model"
+rir_paths:
+  - "./mit_rirs"
+background_paths:
+  - "./audioset_16k"
+  - "./fma"
+background_paths_duplication_rate:
+  - 1
+  - 1
+false_positive_validation_data_path: "validation_set_features.npy"
+feature_data_files:
+  "ACAV100M_sample": "openwakeword_features_ACAV100M_2000_hrs_16bit.npy"
+
+batch_n_per_class:
+  "ACAV100M_sample": 1024
+  "adversarial_negative": 50
+  "positive": 50
+
+model_type: "dnn"
+layer_size: 32
+steps: 50000
+max_negative_weight: 1500
+target_false_positives_per_hour: 0.2

@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+/* the Mushaf typeface for ayat (KFGQPC Hafs, redistributed unmodified with its licence in public/fonts/KFGQPC-LICENSE.txt) */
+@font-face { font-family: "Yobi Quran"; src: url("./assets/fonts/KFGQPC-Hafs-V30.ttf") format("truetype"); font-display: swap; }
+
+/* Design tokens. Tailwind turns these into utilities (bg-island, text-ink-2, rounded-card, …). */
+@theme {
+  --color-island: #050507;            /* the capsule */
+  --color-fill-1: #161618;            /* buttons and cards on the island */
+  --color-fill-2: #232326;            /* hover */
+  --color-line: #2E2E32;              /* rules, empty meters */
+  --color-ink: #F5F5F7;               /* text */
+  --color-ink-2: #A1A1A6;             /* secondary text */
+  --color-ink-3: #6E6E73;             /* hints */
+  --color-accent: var(--accent, #3CC2B4);     /* Yobi's voice: listening, progress */
+  --color-gold: var(--gold, #E3B04B);         /* yes, done, celebrations */
+  --color-alert: var(--alert, #E5533D);       /* something went wrong */
+
+  --font-ui: "Segoe UI Variable Text", "Segoe UI", Tahoma, sans-serif;
+  --font-display: "Segoe UI Variable Display", "Segoe UI", Tahoma, sans-serif;
+  --font-quran: "Yobi Quran", "Sakkal Majalla", serif;          /* Majalla draws the ornate brackets */
+
+  --radius-pill: 999px;
+  --radius-card: 30px;
+  --radius-control: 14px;
+  --radius-chip: 10px;
+
+  --spacing: 4px;
+}
+
+/* themes bring only their accents: the island itself is always the same deep black */
+[data-theme="faience"] { --accent: #3CC2B4; --gold: #E3B04B; --alert: #E5533D; }
+[data-theme="night"] { --accent: #45D0C1; --gold: #E3B04B; --alert: #D0533B; }
+[data-theme="papyrus"] { --accent: #D8B56A; --gold: #E3B04B; --alert: #E5533D; }
+[data-theme="nile"] { --accent: #7FD6C2; --gold: #E3B04B; --alert: #D0533B; }
+[data-theme="carnelian"] { --accent: #E8A25B; --gold: #E9C46A; --alert: #FF6B4F; }
+
+html, body, #root {
+  margin: 0; height: 100%;
+  background: transparent; overflow: hidden;
+  font-family: var(--font-ui); color: var(--color-ink);
+  -webkit-font-smoothing: antialiased; user-select: none;
+}
+:focus-visible { outline: 2px solid var(--color-gold); outline-offset: 2px; }
+
+/* live-activity motion: compositor-only (transform/opacity), so it costs next to nothing */
+@keyframes yobi-bar { 0%, 100% { transform: scaleY(.35); } 50% { transform: scaleY(1); } }
+@keyframes yobi-spin { to { transform: rotate(360deg); } }
+@keyframes yobi-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+.yobi-bar { animation: yobi-bar .9s ease-in-out infinite; transform-origin: center; }
+.yobi-pulse { animation: yobi-pulse 2.4s ease-in-out infinite; }
+.yobi-spin { animation: yobi-spin 1s linear infinite; }
+/* Windows' "reduce motion", or the user's own switch / the battery saver (html.still) */
+@media (prefers-reduced-motion: reduce) { .yobi-bar, .yobi-pulse, .yobi-spin { animation: none; } }
+html.still .yobi-bar, html.still .yobi-pulse, html.still .yobi-spin { animation: none; }

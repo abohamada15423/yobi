@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>يوبي (Yobi) — التوثيق الشامل</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        :root {
+            --primary: #6C5CE7;
+            --primary-light: #A29BFE;
+            --secondary: #00CEC9;
+            --accent: #FD79A8;
+            --dark: #1A1A2E;
+            --darker: #0F0F23;
+            --card: #16213E;
+            --card-border: #2A2A5A;
+            --text: #E8E8F0;
+            --text-muted: #A0A0C0;
+            --success: #00B894;
+            --warning: #FDCB6E;
+            --error: #E17055;
+            --info: #74B9FF;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: var(--darker);
+            color: var(--text);
+            line-height: 1.8;
+            font-size: 15px;
+        }
+
+        @media print {
+            body {
+                background: white;
+                color: #1a1a1a;
+                font-size: 12px;
+                line-height: 1.6;
+            }
+            .cover-page { page-break-after: always; }
+            .section { page-break-inside: avoid; }
+            h2 { page-break-before: always; }
+            h2:first-of-type { page-break-before: avoid; }
+            .no-print { display: none; }
+            .card { border: 1px solid #ddd !important; background: #f9f9f9 !important; }
+            table { border-collapse: collapse; }
+            th { background: #e0e0e0 !important; color: #1a1a1a !important; }
+            td, th { border: 1px solid #ccc !important; }
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px 40px;
+        }
+
+        /* Cover Page */
+        .cover-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 50%, #1e1e3a 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cover-page::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 30% 40%, rgba(108, 92, 231, 0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 60%, rgba(0, 206, 201, 0.1) 0%, transparent 50%);
+        }
+
+        .cover-logo {
+            font-size: 120px;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .cover-title {
+            font-size: 64px;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary-light), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            position: relative;
+            z-index: 1;
+            margin-bottom: 10px;
+        }
+
+        .cover-subtitle {
+            font-size: 24px;
+            color: var(--text-muted);
+            position: relative;
+            z-index: 1;
+            margin-bottom: 30px;
+        }
+
+        .cover-version {
+            display: inline-block;
+            padding: 8px 24px;
+            border-radius: 50px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            font-weight: 700;
+            font-size: 18px;
+            position: relative;
+            z-index: 1;
+            margin-bottom: 20px;
+        }
+
+        .cover-date {
+            color: var(--text-muted);
+            font-size: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* TOC */
+        .toc {
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 30px 40px;
+            margin: 40px 0;
+        }
+
+        .toc h2 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            color: var(--primary-light);
+        }
+
+        .toc-list {
+            list-style: none;
+            counter-reset: toc-counter;
+        }
+
+        .toc-list li {
+            counter-increment: toc-counter;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 17px;
+        }
+
+        .toc-list li::before {
+            content: counter(toc-counter) ".";
+            color: var(--secondary);
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        .toc-list li a {
+            color: var(--text);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .toc-list li a:hover {
+            color: var(--primary-light);
+        }
+
+        /* Headings */
+        h2 {
+            font-size: 36px;
+            font-weight: 800;
+            margin: 50px 0 20px;
+            padding-bottom: 12px;
+            border-bottom: 3px solid var(--primary);
+            color: var(--primary-light);
+        }
+
+        h3 {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 30px 0 15px;
+            color: var(--secondary);
+        }
+
+        h4 {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 20px 0 10px;
+            color: var(--accent);
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 24px;
+            margin: 20px 0;
+        }
+
+        .card.highlight {
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(108, 92, 231, 0.15);
+        }
+
+        .card.info {
+            border-right: 4px solid var(--info);
+        }
+
+        .card.success {
+            border-right: 4px solid var(--success);
+        }
+
+        .card.warning {
+            border-right: 4px solid var(--warning);
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 15px 0;
+            overflow: hidden;
+            border-radius: 10px;
+            border: 1px solid var(--card-border);
+        }
+
+        th {
+            background: var(--primary);
+            color: white;
+            padding: 12px 16px;
+            text-align: right;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        td {
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 14px;
+        }
+
+        tr:nth-child(even) td {
+            background: rgba(255,255,255,0.02);
+        }
+
+        tr:hover td {
+            background: rgba(108, 92, 231, 0.08);
+        }
+
+        /* Code */
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(108, 92, 231, 0.15);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 13px;
+            direction: ltr;
+            display: inline-block;
+        }
+
+        pre {
+            background: var(--darker);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 20px;
+            overflow-x: auto;
+            direction: ltr;
+            text-align: left;
+            margin: 15px 0;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        /* Lists */
+        ul {
+            padding-right: 20px;
+            margin: 10px 0;
+        }
+
+        li {
+            margin: 6px 0;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .badge-success { background: rgba(0, 184, 148, 0.2); color: var(--success); }
+        .badge-warning { background: rgba(253, 203, 110, 0.2); color: var(--warning); }
+        .badge-info { background: rgba(116, 185, 255, 0.2); color: var(--info); }
+        .badge-error { background: rgba(225, 112, 85, 0.2); color: var(--error); }
+
+        /* Diagram placeholder */
+        .diagram {
+            background: var(--darker);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 30px;
+            margin: 20px 0;
+            text-align: center;
+            direction: ltr;
+        }
+
+        .diagram svg {
+            max-width: 100%;
+        }
+
+        /* Flow boxes */
+        .flow {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            margin: 20px 0;
+            direction: ltr;
+        }
+
+        .flow-item {
+            background: linear-gradient(135deg, var(--card), var(--dark));
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 12px 20px;
+            text-align: center;
+            min-width: 120px;
+            position: relative;
+        }
+
+        .flow-arrow {
+            display: flex;
+            align-items: center;
+            color: var(--primary-light);
+            font-size: 24px;
+        }
+
+        /* Grid */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 768px) {
+            .grid-2 { grid-template-columns: 1fr; }
+            .container { padding: 15px; }
+        }
+
+        /* Version badge */
+        .version-tag {
+            display: inline-block;
+            padding: 4px 16px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .v1 { background: rgba(116, 185, 255, 0.2); color: var(--info); }
+        .v2 { background: rgba(253, 203, 110, 0.2); color: var(--warning); }
+        .v3 { background: rgba(0, 184, 148, 0.2); color: var(--success); }
+        .v4 { background: rgba(108, 92, 231, 0.2); color: var(--primary-light); }
+        .v5 { background: rgba(253, 121, 168, 0.2); color: var(--accent); }
+
+        /* Status check */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 12px 16px;
+        }
+
+        .status-item .check {
+            font-size: 20px;
+        }
+
+        /* Separator */
+        hr {
+            border: none;
+            height: 1px;
+            background: linear-gradient(to left, transparent, var(--card-border), transparent);
+            margin: 40px 0;
+        }
+
+        /* Print button */
+        .print-btn {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-family: 'Cairo', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(108, 92, 231, 0.4);
+            transition: transform 0.2s;
+            z-index: 1000;
+        }
+
+        .print-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .emoji-icon {
+            font-size: 24px;
+            margin-left: 8px;
+        }
+
+        .section-intro {
+            font-size: 17px;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+            line-height: 1.9;
+        }
+
+        blockquote {
+            border-right: 4px solid var(--primary);
+            padding: 15px 20px;
+            margin: 15px 0;
+            background: rgba(108, 92, 231, 0.08);
+            border-radius: 0 8px 8px 0;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+<button class="print-btn no-print" onclick="window.print()">📄 حفظ كـ PDF</button>
+
+<!-- ═══════════════ COVER PAGE ═══════════════ -->
+<div class="cover-page">
+    <div class="cover-logo">🤖</div>
+    <div class="cover-title">يوبي — Yobi</div>
+    <div class="cover-subtitle">مساعد صوتي ذكي شخصي للكمبيوتر</div>
+    <div class="cover-version">الإصدار v4 (Hearing) + Dynamic Island v5</div>
+    <div class="cover-date">التوثيق الشامل — أكتوبر 2026</div>
+</div>
+
+<div class="container">
+
+<!-- ═══════════════ TABLE OF CONTENTS ═══════════════ -->
+<div class="toc">
+    <h2>📑 جدول المحتويات</h2>
+    <ol class="toc-list">
+        <li><a href="#what">ما هو يوبي؟</a></li>
+        <li><a href="#arch">البنية المعمارية</a></li>
+        <li><a href="#how">كيف يشتغل يوبي</a></li>
+        <li><a href="#files">الملفات والموديولات</a></li>
+        <li><a href="#features">الخصائص والمميزات</a></li>
+        <li><a href="#changelog">سجل التعديلات (Changelog)</a></li>
+        <li><a href="#config">نظام الإعدادات</a></li>
+        <li><a href="#install">المتطلبات والتسطيب</a></li>
+        <li><a href="#summary">الملخص</a></li>
+    </ol>
+</div>
+
+<!-- ═══════════════ SECTION 1: WHAT IS YOBI ═══════════════ -->
+<h2 id="what">🤖 ١. ما هو يوبي؟</h2>
+
+<div class="card highlight">
+    <p class="section-intro">
+        <strong>يوبي (Yobi)</strong> هو مساعد صوتي ذكي شخصي مصمم للعمل على أجهزة الكمبيوتر بنظام Windows.
+        يوبي بيتكلم <strong>بالعامية المصرية</strong> وبيفهم الأوامر العربية والإنجليزية.
+        هو ببساطة <strong>صاحبك الذكي اللي قاعد على جهازك</strong> — تقدر تكلمه بصوتك أو تكتبله، وهو ينفذ اللي عايزه.
+    </p>
+</div>
+
+<h3>الفكرة الأساسية</h3>
+<p>يوبي بيجمع بين 4 تقنيات رئيسية:</p>
+
+<div class="grid-2">
+    <div class="card info">
+        <h4>🎤 التعرف على الكلام (STT)</h4>
+        <p>عبر Whisper — يفهم المصري والإنجليزي، مع 3 محركات ودعم أوفلاين</p>
+    </div>
+    <div class="card info">
+        <h4>🧠 الذكاء الاصطناعي (LLM)</h4>
+        <p>عبر Groq API — عقل ذكي بيختار الأدوات ويفهم أي صيغة كلام</p>
+    </div>
+    <div class="card info">
+        <h4>🔊 تحويل النص لكلام (TTS)</h4>
+        <p>عبر Edge TTS أونلاين + Piper أوفلاين — صوت مصري طبيعي</p>
+    </div>
+    <div class="card info">
+        <h4>⚙️ التحكم في الجهاز</h4>
+        <p>11 أداة للتحكم الكامل — برامج، ميديا، ملفات، نظام، رؤية</p>
+    </div>
+</div>
+
+<h3>الشخصية</h3>
+<div class="card">
+    <ul>
+        <li>صاحب ذكي وودود، مش روبوت ومش خدمة عملاء — عنده آراء وبيتفاعل</li>
+        <li>بيتكلم بنفس لغة اللي قدامه: مصري عامي أو إنجليزي</li>
+        <li>مبيبدأش بـ "بالطبع" أو "سؤال ممتاز" — ومبيقولش إنه AI</li>
+        <li>لو مش متأكد بيقول "مش متأكد" أو بيسأل — مبيألفش</li>
+    </ul>
+</div>
+
+<!-- ═══════════════ SECTION 2: ARCHITECTURE ═══════════════ -->
+<h2 id="arch">🏗️ ٢. البنية المعمارية</h2>
+
+<div class="card">
+    <h3>المكونات الرئيسية</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>المكون</th>
+                <th>الدور</th>
+                <th>الملف</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td><strong>Agent</strong></td><td>المنسق الرئيسي — يربط كل الأجزاء ببعض</td><td><code>agent.py</code></td></tr>
+            <tr><td><strong>Brain</strong></td><td>العقل — بيفهم الأوامر وبيختار الأدوات</td><td><code>brain.py</code></td></tr>
+            <tr><td><strong>YobiTools</strong></td><td>الأدوات اللي العقل بيستخدمها (11 أداة)</td><td><code>yobi_tools.py</code></td></tr>
+            <tr><td><strong>AudioEngine</strong></td><td>محرك الصوت الموحّد (مايك + سماعة)</td><td><code>audio_io.py</code></td></tr>
+            <tr><td><strong>VADRecognizer</strong></td><td>ودان يوبي — كشف الكلام بـ WebRTC VAD</td><td><code>audio_input.py</code></td></tr>
+            <tr><td><strong>WakeWordDetector</strong></td><td>النداء أوفلاين — "يا يوبي"</td><td><code>wake_word.py</code></td></tr>
+            <tr><td><strong>STTEngine</strong></td><td>تحويل الكلام لنص (3 محركات)</td><td><code>stt_engine.py</code></td></tr>
+            <tr><td><strong>TTSEngine</strong></td><td>تحويل النص لكلام (Edge + Piper)</td><td><code>tts_engine.py</code></td></tr>
+            <tr><td><strong>DynamicIsland</strong></td><td>الواجهة — Dynamic Island على طراز Apple</td><td><code>ui.py</code></td></tr>
+            <tr><td><strong>ContextMemory</strong></td><td>الذاكرة الذكية (entities, mood, topics)</td><td><code>context_memory.py</code></td></tr>
+        </tbody>
+    </table>
+</div>
+
+<h3>مخطط تدفق البيانات</h3>
+<div class="card">
+    <div class="flow">
+        <div class="flow-item">🎤 المايك</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item" style="border-color: var(--info);">🔇 إلغاء صدى<br><small>audio_io.py</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item" style="border-color: var(--warning);">👂 كشف كلام<br><small>audio_input.py</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item" style="border-color: var(--success);">📝 Whisper STT<br><small>stt_engine.py</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item" style="border-color: var(--primary);">🧠 العقل<br><small>brain.py</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item" style="border-color: var(--accent);">⚙️ الأدوات<br><small>yobi_tools.py</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item" style="border-color: var(--secondary);">🔊 كلام TTS<br><small>tts_engine.py</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-item">🔈 السماعات</div>
+    </div>
+</div>
+
+<!-- ═══════════════ SECTION 3: HOW IT WORKS ═══════════════ -->
+<h2 id="how">⚙️ ٣. كيف يشتغل يوبي</h2>
+
+<h3>دورة الأمر الصوتي (Voice Turn)</h3>
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>المرحلة</th>
+                <th>التفاصيل</th>
+                <th>الملف</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td>1</td><td>النداء</td><td>المستخدم يقول "يا يوبي" → openWakeWord يكتشفها أوفلاين على الـ CPU</td><td><code>wake_word.py</code></td></tr>
+            <tr><td>2</td><td>الاستماع</td><td>WebRTC VAD بيحدد بداية ونهاية الكلام (بعد 0.6 ثانية سكوت)</td><td><code>audio_input.py</code></td></tr>
+            <tr><td>3</td><td>التعرف</td><td>الصوت بيتبعت لـ Whisper (Groq أو محلي) → نص</td><td><code>stt_engine.py</code></td></tr>
+            <tr><td>4</td><td>الفهم</td><td>العقل (LLM) بيقرأ النص وبيختار الأداة المناسبة</td><td><code>brain.py</code></td></tr>
+            <tr><td>5</td><td>التنفيذ</td><td>الأداة بتنفذ الأمر (فتح برنامج، تشغيل أغنية، إلخ)</td><td><code>yobi_tools.py</code></td></tr>
+            <tr><td>6</td><td>الرد</td><td>الـ AI بيكتب رد مصري قصير → TTS بيقوله بصوت</td><td><code>tts_engine.py</code></td></tr>
+        </tbody>
+    </table>
+</div>
+
+<h3>المسارات</h3>
+<div class="grid-2">
+    <div class="card success">
+        <h4>⚡ المسار السريع (Fast Path)</h4>
+        <p>الأوامر المعروفة زي "افتح كروم" بتتنفذ على طول من غير AI — بتتعرف من القاموس المحلي في لحظتها.</p>
+    </div>
+    <div class="card info">
+        <h4>🧠 المسار الذكي (Brain Path)</h4>
+        <p>الأوامر المركبة أو المفتوحة بتعدي على العقل اللي بيستخدم الـ LLM مع tool calling — يقدر ينفذ أكتر من أداة في رد واحد.</p>
+    </div>
+</div>
+
+<h3>الـ Streaming</h3>
+<div class="card warning">
+    <p>يوبي بيبدأ يتكلم بعد <strong>أول جملة</strong> من رد الـ AI — مش بيستنى الرد كله يخلص. وبيجهز صوت الجملة اللي بعدها وهو بيقول اللي قبلها (pipelined synthesis).</p>
+</div>
+
+<!-- ═══════════════ SECTION 4: FILES ═══════════════ -->
+<h2 id="files">📂 ٤. الملفات والموديولات</h2>
+
+<h3>🔹 الملفات الأساسية (Core)</h3>
+<table>
+    <thead><tr><th>الملف</th><th>الحجم</th><th>الأسطر</th><th>الوصف</th></tr></thead>
+    <tbody>
+        <tr><td><code>agent.py</code></td><td>74 KB</td><td>1,790</td><td>المنسق الرئيسي — يربط كل الأنظمة ببعض، يدير اللوب الرئيسي</td></tr>
+        <tr><td><code>brain.py</code></td><td>11 KB</td><td>241</td><td>العقل الجديد — tool calling + streaming</td></tr>
+        <tr><td><code>yobi_tools.py</code></td><td>9 KB</td><td>229</td><td>11 أداة: open/close apps، system control، media، reminders، vision</td></tr>
+        <tr><td><code>config.py</code></td><td>13 KB</td><td>360</td><td>نظام إعدادات موحّد — YAML/JSON + hot reload + validation</td></tr>
+        <tr><td><code>config.json</code></td><td>7 KB</td><td>161</td><td>قاموس المواقع والبرامج (عربي + إنجليزي)</td></tr>
+    </tbody>
+</table>
+
+<h3>🔹 نظام السمع (Hearing System)</h3>
+<table>
+    <thead><tr><th>الملف</th><th>الحجم</th><th>الأسطر</th><th>الوصف</th></tr></thead>
+    <tbody>
+        <tr><td><code>audio_io.py</code></td><td>14 KB</td><td>367</td><td>محرك موحّد — مايك + سماعة + إلغاء صدى WebRTC AEC3</td></tr>
+        <tr><td><code>audio_input.py</code></td><td>18 KB</td><td>457</td><td>ودان يوبي — VAD + hotkey + barge-in + pre-roll</td></tr>
+        <tr><td><code>wake_word.py</code></td><td>5 KB</td><td>141</td><td>نداء أوفلاين — openWakeWord بموديل ONNX</td></tr>
+        <tr><td><code>stt_engine.py</code></td><td>7 KB</td><td>177</td><td>3 محركات STT + fallback تلقائي + circuit breaker</td></tr>
+        <tr><td><code>vocab.py</code></td><td>5 KB</td><td>149</td><td>مفردات شخصية — أسماء برامجك وصحابك في prompt الـ Whisper</td></tr>
+        <tr><td><code>sounds.py</code></td><td>2 KB</td><td>82</td><td>أصوات تنبيه — wake, success, error, listening, hide</td></tr>
+        <tr><td><code>latency.py</code></td><td>7 KB</td><td>180</td><td>قياس أداء — STT + LLM + TTS + إجمالي + CSV</td></tr>
+    </tbody>
+</table>
+
+<h3>🔹 الكلام (TTS)</h3>
+<table>
+    <thead><tr><th>الملف</th><th>الحجم</th><th>الأسطر</th><th>الوصف</th></tr></thead>
+    <tbody>
+        <tr><td><code>tts_engine.py</code></td><td>23 KB</td><td>660</td><td>محرك كلام — Edge TTS أونلاين + Piper أوفلاين + streaming + cache</td></tr>
+    </tbody>
+</table>
+
+<h3>🔹 الواجهة (UI)</h3>
+<table>
+    <thead><tr><th>الملف</th><th>الحجم</th><th>الوصف</th></tr></thead>
+    <tbody>
+        <tr><td><code>ui.py</code></td><td>102 KB</td><td>Dynamic Island v5 — شخصية حيّة بعيون وأنيميشن</td></tr>
+        <tr><td><code>chat_window.py</code></td><td>5 KB</td><td>نافذة شات نصي</td></tr>
+        <tr><td><code>overlay_ui.py</code></td><td>3 KB</td><td>شاشة إحصائيات الألعاب</td></tr>
+        <tr><td><code>ui_extras.py</code></td><td>15 KB</td><td>إعدادات واجهة المستخدم</td></tr>
+        <tr><td><code>tray_icon.py</code></td><td>5 KB</td><td>أيقونة شريط النظام</td></tr>
+    </tbody>
+</table>
+
+<h3>🔹 الذاكرة والتعلم</h3>
+<table>
+    <thead><tr><th>الملف</th><th>الحجم</th><th>الأسطر</th><th>الوصف</th></tr></thead>
+    <tbody>
+        <tr><td><code>context_memory.py</code></td><td>21 KB</td><td>562</td><td>ذاكرة ذكية — entities، mood، topics، pronoun resolution</td></tr>
+        <tr><td><code>chat_memory.py</code></td><td>4 KB</td><td>—</td><td>ذاكرة المحادثة — آخر 10 رسايل</td></tr>
+        <tr><td><code>self_learning.py</code></td><td>7 KB</td><td>201</td><td>التعلم الذاتي — بيتعلم من نجاحاته وأخطائه</td></tr>
+        <tr><td><code>smart_suggestions.py</code></td><td>8 KB</td><td>186</td><td>اقتراحات ذكية — بيتتبع أنماط الاستخدام</td></tr>
+    </tbody>
+</table>
+
+<h3>🔹 التحكم في النظام</h3>
+<table>
+    <thead><tr><th>الملف</th><th>الحجم</th><th>الوصف</th></tr></thead>
+    <tbody>
+        <tr><td><code>system_control.py</code></td><td>10 KB</td><td>صوت، ميديا، سطوع، قفل، باور</td></tr>
+        <tr><td><code>file_ops.py</code></td><td>14 KB</td><td>ملفات — فتح/مسح/دور/اعمل فولدر</td></tr>
+        <tr><td><code>device_control.py</code></td><td>5 KB</td><td>تحكم — WiFi، Bluetooth، إلخ</td></tr>
+        <tr><td><code>media_handler.py</code></td><td>9 KB</td><td>تشغيل ميديا — Spotify + YouTube</td></tr>
+        <tr><td><code>app_scanner.py</code></td><td>12 KB</td><td>فحص البرامج المثبتة</td></tr>
+        <tr><td><code>game_scanner.py</code></td><td>10 KB</td><td>فحص الألعاب — Steam، Epic، Riot</td></tr>
+    </tbody>
+</table>
+
+<h3>🔹 الألعاب والرؤية</h3>
+<table>
+    <thead><tr><th>الملف</th><th>الحجم</th><th>الأسطر</th><th>الوصف</th></tr></thead>
+    <tbody>
+        <tr><td><code>game_companion.py</code></td><td>21 KB</td><td>588</td><td>رفيق الألعاب — session tracking، breaks، performance</td></tr>
+        <tr><td><code>auto_login.py</code></td><td>19 KB</td><td>—</td><td>تسجيل دخول تلقائي للألعاب</td></tr>
+        <tr><td><code>vision_agent.py</code></td><td>24 KB</td><td>643</td><td>computer use — رؤية + تحكم في الشاشة</td></tr>
+    </tbody>
+</table>
+
+<h3>🔹 الحماية واللغة</h3>
+<table>
+    <thead><tr><th>الملف</th><th>الحجم</th><th>الوصف</th></tr></thead>
+    <tbody>
+        <tr><td><code>retry_handler.py</code></td><td>16 KB</td><td>حماية — retry + circuit breaker + offline fallback</td></tr>
+        <tr><td><code>yobi_logger.py</code></td><td>11 KB</td><td>لوج محترف — ألوان + rotating files + performance</td></tr>
+        <tr><td><code>aliases.py</code></td><td>7 KB</td><td>ترجمة أسماء البرامج عربي ↔ إنجليزي</td></tr>
+        <tr><td><code>addressing.py</code></td><td>8 KB</td><td>تصنيف: هل الكلام موجّه ليوبي؟</td></tr>
+        <tr><td><code>natural_qa.py</code></td><td>5 KB</td><td>إجابة الأسئلة العامة ومعلومات الجهاز</td></tr>
+        <tr><td><code>scheduler.py</code></td><td>7 KB</td><td>جدولة — تذكيرات وأوامر مؤجلة</td></tr>
+    </tbody>
+</table>
+
+<!-- ═══════════════ SECTION 5: FEATURES ═══════════════ -->
+<h2 id="features">✨ ٥. الخصائص والمميزات</h2>
+
+<h3>🎤 نظام السمع المتقدم (v4)</h3>
+
+<h4>إلغاء الصدى (Echo Cancellation)</h4>
+<div class="card">
+    <ul>
+        <li><strong>WebRTC AEC3</strong> عبر <code>livekit</code> — بيشيل صوت يوبي من المايك</li>
+        <li>المايك والسماعة في محرك واحد — كل كلام يوبي وأصوات التنبيه بتعدي عليه</li>
+        <li>تقدر تقاطعه بالكلام العادي أو بالنداء وهو بيتكلم (<strong>barge-in</strong>)</li>
+        <li>لو AEC مش موجود، يوبي بيوقف المايك وهو بيتكلم</li>
+    </ul>
+</div>
+
+<h4>النداء أوفلاين (Wake Word)</h4>
+<div class="card">
+    <ul>
+        <li><strong>openWakeWord</strong> بموديل ONNX — بيشتغل على كل 80ms صوت على الـ CPU بس</li>
+        <li>Whisper مش بيشتغل غير <strong>بعد</strong> ما يسمع "يا يوبي"</li>
+        <li>الكلام اللي بعد النداء في <strong>نفس النَفَس</strong> مش بيضيع</li>
+        <li>ممكن تدرّب موديل خاص بصوتك</li>
+    </ul>
+</div>
+
+<h4>3 محركات STT</h4>
+<table>
+    <thead><tr><th>المحرك</th><th>الموديل</th><th>الوصف</th><th>الاتصال</th></tr></thead>
+    <tbody>
+        <tr><td><code>groq-turbo</code></td><td>whisper-large-v3-turbo</td><td>سريع</td><td><span class="badge badge-info">أونلاين</span></td></tr>
+        <tr><td><code>groq-v3</code></td><td>whisper-large-v3</td><td>أدق</td><td><span class="badge badge-info">أونلاين</span></td></tr>
+        <tr><td><code>local</code></td><td>faster-whisper (GPU)</td><td>أوفلاين</td><td><span class="badge badge-success">أوفلاين</span></td></tr>
+    </tbody>
+</table>
+
+<h3>🧠 العقل الذكي (Brain)</h3>
+
+<h4>الأدوات المتاحة (11 أداة)</h4>
+<table>
+    <thead><tr><th>الأداة</th><th>الوظيفة</th></tr></thead>
+    <tbody>
+        <tr><td><code>open_app</code></td><td>فتح برنامج أو لعبة أو موقع</td></tr>
+        <tr><td><code>close_app</code></td><td>قفل برنامج شغال</td></tr>
+        <tr><td><code>system_control</code></td><td>صوت، ميديا، سطوع، قفل، سكرينشوت، باور</td></tr>
+        <tr><td><code>play_media</code></td><td>تشغيل أغنية أو فيديو (YouTube/Spotify)</td></tr>
+        <tr><td><code>web_search</code></td><td>بحث على جوجل أو يوتيوب</td></tr>
+        <tr><td><code>set_reminder</code></td><td>تذكير بعد مدة معينة</td></tr>
+        <tr><td><code>schedule_command</code></td><td>تأجيل أمر (مثل "اقفل اللعبة بعد ساعة")</td></tr>
+        <tr><td><code>pc_command</code></td><td>ملفات ومجلدات وأوامر الجهاز</td></tr>
+        <tr><td><code>system_info</code></td><td>معلومات الجهاز (رام، بطارية، وقت)</td></tr>
+        <tr><td><code>look_at_screen</code></td><td>وصف اللي على الشاشة</td></tr>
+        <tr><td><code>do_on_screen</code></td><td>computer use — تحكم في الماوس والكيبورد</td></tr>
+    </tbody>
+</table>
+
+<div class="card warning">
+    <h4>🔗 أوامر مركبة</h4>
+    <blockquote>
+        "علّي الصوت وشغلي حاجة لعمرو دياب وفكرني بعد ربع ساعة أقوم"
+    </blockquote>
+    <p>→ <code>system_control(volume_up)</code> + <code>play_media("عمرو دياب")</code> + <code>set_reminder(15, "قوم")</code></p>
+</div>
+
+<h3>🔊 الكلام (TTS)</h3>
+<table>
+    <thead><tr><th>الوضع</th><th>المحرك</th><th>الوصف</th></tr></thead>
+    <tbody>
+        <tr><td><code>auto</code> (افتراضي)</td><td>Edge → Piper</td><td>Edge أونلاين، Piper لما النت يقع</td></tr>
+        <tr><td><code>edge</code></td><td>Edge TTS</td><td>Microsoft Edge neural — صوت مصري</td></tr>
+        <tr><td><code>piper</code></td><td>Piper TTS</td><td>أوفلاين — صوت عربي فصيح</td></tr>
+    </tbody>
+</table>
+<div class="card">
+    <ul>
+        <li><strong>Streaming</strong>: بيبدأ يتكلم بعد أول جملة</li>
+        <li><strong>Pipeline</strong>: بيجهز صوت الجملة التانية وهو بيقول الأولى</li>
+        <li><strong>Cache</strong>: بيحفظ الجمل القصيرة (≤40 حرف) في الكاش</li>
+        <li><strong>Instant stop</strong>: بيوقف الكلام فوراً لما تقاطعه</li>
+    </ul>
+</div>
+
+<h3>🖥️ الواجهة (Dynamic Island v5)</h3>
+<div class="card highlight">
+    <p>واجهة مستوحاة من Apple Dynamic Island — مرسومة frame-by-frame بـ Pillow مع شخصية حيّة</p>
+</div>
+<table>
+    <thead><tr><th>الحالة</th><th>الشكل</th><th>الشخصية</th></tr></thead>
+    <tbody>
+        <tr><td><strong>idle</strong></td><td>دايرة صغيرة</td><td>بترمش وبتبص حواليها، وبتنام بعد 2.5 دقيقة</td></tr>
+        <tr><td><strong>hover</strong></td><td>كبسولة فيها الساعة</td><td>مبسوطة</td></tr>
+        <tr><td><strong>listening</strong></td><td>كبسولة عريضة + موجات + جزيئات</td><td>عيون واسعة</td></tr>
+        <tr><td><strong>speaking</strong></td><td>كبسولة + أعمدة صوت</td><td>بقها بيتحرك مع الكلام</td></tr>
+        <tr><td><strong>thinking</strong></td><td>بتتقسم لدايرة + كبسولة</td><td>نقط بتلف حواليها</td></tr>
+        <tr><td><strong>executing</strong></td><td>كبسولة + spinner + progress</td><td>مركّزة</td></tr>
+        <tr><td><strong>account</strong></td><td>كبسولة + نقط باسورد</td><td>مغمّضة + قفل</td></tr>
+        <tr><td><strong>recording</strong></td><td>كبسولة + عداد</td><td>نقطة تسجيل حمرا</td></tr>
+        <tr><td><strong>suggesting</strong></td><td>كارت + أزرار</td><td>لمبة فوق راسها</td></tr>
+        <tr><td><strong>success/error/info</strong></td><td>كبسولة على قد النص</td><td>مبسوطة / X / عادية</td></tr>
+    </tbody>
+</table>
+
+<h3>🧠 الذاكرة الذكية</h3>
+<table>
+    <thead><tr><th>الميزة</th><th>الوصف</th></tr></thead>
+    <tbody>
+        <tr><td><strong>Entity Tracking</strong></td><td>بيفتكر آخر برنامج/لعبة/ملف/موقع</td></tr>
+        <tr><td><strong>Pronoun Resolution</strong></td><td>بيفهم "افتحه تاني" / "اقفله"</td></tr>
+        <tr><td><strong>Multi-turn Context</strong></td><td>سياق 10 أوامر</td></tr>
+        <tr><td><strong>Mood Detection</strong></td><td>بيحس إنك زهقان/مستعجل</td></tr>
+        <tr><td><strong>Session Summary</strong></td><td>بيلخص الجلسة عند الإغلاق</td></tr>
+        <tr><td><strong>Topic Clustering</strong></td><td>بيعرف "وضع شغل" أو "وضع لعب"</td></tr>
+    </tbody>
+</table>
+
+<h3>🎮 رفيق الألعاب</h3>
+<div class="card">
+    <ul>
+        <li><strong>Process Monitor</strong> — يعرف أي لعبة شغالة (30+ لعبة معروفة)</li>
+        <li><strong>Session Timer</strong> — بيتتبع وقت اللعب</li>
+        <li><strong>Break Reminder</strong> — يفكّرك تاخد راحة كل ساعة</li>
+        <li><strong>Performance Monitor</strong> — CPU/RAM/FPS/GPU tracking</li>
+        <li><strong>Game Tips</strong> — نصائح من الـ AI عن اللعبة</li>
+        <li><strong>إحصائيات</strong> — يومية وأسبوعية في <code>game_stats.json</code></li>
+    </ul>
+</div>
+
+<h3>👁️ الرؤية (Vision Agent v2)</h3>
+<div class="card">
+    <ul>
+        <li><strong>OCR + Element Detection</strong> — بيكتشف عناصر الواجهة بـ UI Automation</li>
+        <li><strong>Screen Description</strong> — "إيه اللي على الشاشة؟"</li>
+        <li><strong>Visual Memory</strong> — بيفتكر خطوات ناجحة ويعيدها من غير AI</li>
+        <li><strong>Computer Use</strong> — بيتحكم في الماوس والكيبورد (حتى 15 خطوة)</li>
+        <li>يشتغل بـ <strong>Llama 4 Maverick</strong> — موديل رؤية متقدم</li>
+    </ul>
+</div>
+
+<h3>🛡️ الحماية والاستقرار</h3>
+<div class="grid-2">
+    <div class="card">
+        <h4>Retry Handler</h4>
+        <ul>
+            <li>Exponential Backoff مع jitter</li>
+            <li>Circuit Breaker — بيوقف بعد 5 أخطاء</li>
+            <li>Fallback: Groq → Cache → Default</li>
+            <li>Health Monitor</li>
+            <li>Offline Mode</li>
+        </ul>
+    </div>
+    <div class="card">
+        <h4>Logger</h4>
+        <ul>
+            <li>ألوان في التيرمينال</li>
+            <li>Rotating files — 10MB × 3 نسخ</li>
+            <li>Performance timing</li>
+            <li>Error aggregation</li>
+            <li>Thread-safe</li>
+        </ul>
+    </div>
+</div>
+
+<!-- ═══════════════ SECTION 6: CHANGELOG ═══════════════ -->
+<h2 id="changelog">📜 ٦. سجل التعديلات (Changelog)</h2>
+
+<h3><span class="version-tag v1">v1</span> الأساس</h3>
+<div class="card">
+    <ul>
+        <li>مساعد صوتي بسيط بـ Whisper + Groq</li>
+        <li>أوامر regex أساسية</li>
+        <li>واجهة بسيطة</li>
+    </ul>
+</div>
+
+<h3><span class="version-tag v2">v2</span> التحسينات</h3>
+<div class="card">
+    <ul>
+        <li>إضافة Context Memory</li>
+        <li>دعم أوامر أكتر</li>
+        <li>تحسين التعرف على الكلام</li>
+    </ul>
+</div>
+
+<h3><span class="version-tag v3">v3</span> العقل الجديد 🚀</h3>
+<div class="card highlight">
+    <h4>⚡ السرعة</h4>
+    <ul>
+        <li>✅ ودان جديدة (<code>audio_input.py</code>) — المايك فاتح على طول مع VAD حقيقي</li>
+        <li>✅ تنفيذ في نَفَس واحد — "يا يوبي افتح سبوتيفاي" من غير جولة تانية</li>
+        <li>✅ رد streaming — بيبدأ يتكلم بعد أول جملة</li>
+        <li>✅ مقاطعة (barge-in) — بيسكت فوراً</li>
+        <li>✅ مبقاش بيسمع نفسه</li>
+        <li>✅ اختصار <code>Ctrl+Alt+Y</code></li>
+        <li>✅ كاش للموديل 12 ساعة</li>
+    </ul>
+
+    <h4>🧠 العقل</h4>
+    <ul>
+        <li>✅ Tool calling بدل regex — بيفهم أي صيغة</li>
+        <li>✅ 11 أداة جديدة</li>
+        <li>✅ أوامر مركبة في رد واحد</li>
+        <li>✅ Fallback تلقائي</li>
+    </ul>
+
+    <h4>🐛 باجات اتصلحت</h4>
+    <ul>
+        <li>🔧 <code>context.resolve_reference</code> كان مش موجود → AttributeError</li>
+        <li>🔧 نافذة الشات كانت بترد "استلمت: ..." بس</li>
+        <li>🔧 <code>stop_speaking()</code> كان بيفضّي الطابور بس</li>
+        <li>🔧 <code>kill_process("Spotify")</code> مكانش بيقفل (حروف كبيرة)</li>
+        <li>🔧 "اقفل اللعبة" كانت بتقفل المحادثة</li>
+        <li>🔧 auto-login بقى في الخلفية</li>
+        <li>🔧 <code>audioop</code> اتشال (Python 3.13 ready)</li>
+    </ul>
+
+    <h4>📄 ملفات جديدة</h4>
+    <p><code>brain.py</code> · <code>yobi_tools.py</code> · <code>audio_input.py</code> · <code>config.py</code> · <code>retry_handler.py</code> · <code>yobi_logger.py</code> · <code>game_companion.py</code> · <code>context_memory.py</code> v2 · <code>smart_suggestions.py</code></p>
+</div>
+
+<h3><span class="version-tag v4">v4</span> السمع والكلام 👂</h3>
+<div class="card highlight">
+    <h4>إضافات جديدة</h4>
+    <ul>
+        <li>✅ <strong>إلغاء الصدى</strong> — WebRTC AEC3 عبر <code>livekit</code></li>
+        <li>✅ <strong>نداء أوفلاين</strong> — openWakeWord بموديل ONNX</li>
+        <li>✅ <strong>3 محركات STT</strong> — مع fallback تلقائي</li>
+        <li>✅ <strong>TTS أوفلاين</strong> — Piper كاحتياطي</li>
+        <li>✅ <strong>مفردات شخصية</strong> — <code>vocab.py</code> + <code>vocab.json</code></li>
+        <li>✅ <strong>قياس الأداء</strong> — <code>latency.py</code> مع CSV</li>
+    </ul>
+
+    <h4>📄 ملفات جديدة</h4>
+    <p><code>audio_io.py</code> · <code>wake_word.py</code> · <code>stt_engine.py</code> · <code>vocab.py</code> · <code>sounds.py</code> · <code>latency.py</code></p>
+
+    <h4>🧪 اختبارات</h4>
+    <p>29 اختبار في <code>tests/test_hearing.py</code> — تغطي AEC، النداء، barge-in، fallback، latency، vocab</p>
+</div>
+
+<h3><span class="version-tag v5">Dynamic Island v5</span> الواجهة الجديدة 🏝️</h3>
+<div class="card highlight">
+    <ul>
+        <li>✅ شخصية حيّة — عيون بترمش، بق بيتحرك، مزاج بيتغير</li>
+        <li>✅ 10 حالات بصرية مختلفة</li>
+        <li>✅ Spring animation — حركة elastic مرنة</li>
+        <li>✅ Per-pixel transparency — شفافية حقيقية على Windows</li>
+        <li>✅ Progress bar — determinate + indeterminate</li>
+        <li>✅ Suggestions UI — كارت باقتراحات وأزرار</li>
+        <li>✅ API جديد: <code>set_progress()</code>, <code>set_suggestions()</code>, <code>set_speaking()</code></li>
+    </ul>
+</div>
+
+<!-- ═══════════════ SECTION 7: CONFIG ═══════════════ -->
+<h2 id="config">⚙️ ٧. نظام الإعدادات</h2>
+
+<h3>config.json — القاموس</h3>
+<div class="card">
+    <pre><code>{
+    "wake_words": ["يوبي", "يو بي", "يا يوبي", "yobi"],
+    "hotkey": "ctrl+alt+y",
+    "end_silence_ms": 600,
+    "vad_aggressiveness": 2,
+    "brain_model": "auto"
+}</code></pre>
+</div>
+
+<h3>config.py — الأقسام</h3>
+<table>
+    <thead><tr><th>القسم</th><th>أمثلة</th><th>الوصف</th></tr></thead>
+    <tbody>
+        <tr><td><code>groq</code></td><td><code>groq.api_key</code>, <code>groq.chat_model</code></td><td>إعدادات الـ AI</td></tr>
+        <tr><td><code>voice</code></td><td><code>voice.tts_voice</code>, <code>voice.wake_words</code></td><td>الصوت والنداء</td></tr>
+        <tr><td><code>ui</code></td><td><code>ui.theme</code>, <code>ui.island_x</code></td><td>الواجهة</td></tr>
+        <tr><td><code>memory</code></td><td><code>memory.context_depth</code></td><td>الذاكرة</td></tr>
+        <tr><td><code>retry</code></td><td><code>retry.max_retries</code></td><td>الحماية</td></tr>
+        <tr><td><code>game_companion</code></td><td><code>game_companion.break_reminder_minutes</code></td><td>الألعاب</td></tr>
+        <tr><td><code>logging</code></td><td><code>logging.level</code></td><td>اللوج</td></tr>
+    </tbody>
+</table>
+
+<h3>إعدادات السمع (hearing)</h3>
+<table>
+    <thead><tr><th>الإعداد</th><th>الافتراضي</th><th>الوصف</th></tr></thead>
+    <tbody>
+        <tr><td><code>audio_engine</code></td><td><code>true</code></td><td>محرك المايك والسماعة</td></tr>
+        <tr><td><code>aec</code></td><td><code>true</code></td><td>إلغاء الصدى</td></tr>
+        <tr><td><code>wake_model</code></td><td><code>models/ya_yobi.onnx</code></td><td>موديل النداء</td></tr>
+        <tr><td><code>wake_threshold</code></td><td><code>0.5</code></td><td>حساسية النداء</td></tr>
+        <tr><td><code>barge_in</code></td><td><code>auto</code></td><td>المقاطعة: auto / wake / speech / off</td></tr>
+        <tr><td><code>stt_engine</code></td><td><code>auto</code></td><td>المحرك: auto / groq-turbo / groq-v3 / local</td></tr>
+        <tr><td><code>stt_order</code></td><td><code>[groq-turbo, local, groq-v3]</code></td><td>ترتيب المحاولة</td></tr>
+        <tr><td><code>tts_backend</code></td><td><code>auto</code></td><td>الكلام: auto / edge / piper</td></tr>
+        <tr><td><code>latency_log</code></td><td><code>true</code></td><td>تسجيل الأداء</td></tr>
+    </tbody>
+</table>
+
+<h3>متغيرات البيئة (.env)</h3>
+<table>
+    <thead><tr><th>المتغير</th><th>الوظيفة</th></tr></thead>
+    <tbody>
+        <tr><td><code>GROQ_API_KEY</code></td><td>مفتاح Groq API (مطلوب)</td></tr>
+        <tr><td><code>YOBI_MODEL</code></td><td>يجبر موديل معين</td></tr>
+        <tr><td><code>YOBI_WAKE_MODEL</code></td><td>حجم Whisper للنداء</td></tr>
+        <tr><td><code>YOBI_THEME</code></td><td>ثيم الواجهة</td></tr>
+    </tbody>
+</table>
+
+<!-- ═══════════════ SECTION 8: INSTALL ═══════════════ -->
+<h2 id="install">📦 ٨. المتطلبات والتسطيب</h2>
+
+<h3>متطلبات النظام</h3>
+<div class="grid-2">
+    <div class="card"><strong>Python</strong>: 3.12</div>
+    <div class="card"><strong>Windows</strong>: 10 / 11</div>
+</div>
+<p>GPU (اختياري): NVIDIA لـ Whisper المحلي — يوبي بيشتغل على CPU لو مفيش كارت</p>
+
+<h3>المكتبات</h3>
+<table>
+    <thead><tr><th>الفئة</th><th>المكتبات</th></tr></thead>
+    <tbody>
+        <tr><td>AI والكلام</td><td><code>groq</code>, <code>faster-whisper</code>, <code>SpeechRecognition</code>, <code>edge-tts</code>, <code>pygame</code></td></tr>
+        <tr><td>المايك</td><td><code>sounddevice</code>, <code>webrtcvad-wheels</code>, <code>numpy</code></td></tr>
+        <tr><td>العربي</td><td><code>arabic-reshaper</code>, <code>python-bidi</code></td></tr>
+        <tr><td>Windows</td><td><code>psutil</code>, <code>pywin32</code>, <code>comtypes</code>, <code>pycaw</code>, <code>keyboard</code>, <code>pyautogui</code></td></tr>
+        <tr><td>الواجهة</td><td><code>customtkinter</code>, <code>pystray</code>, <code>Pillow</code>, <code>PyYAML</code></td></tr>
+        <tr><td>v4 اختياري</td><td><code>livekit</code>, <code>miniaudio</code>, <code>openwakeword</code>, <code>piper-tts</code>, <code>scipy</code></td></tr>
+    </tbody>
+</table>
+
+<h3>خطوات التسطيب</h3>
+<div class="card success">
+    <pre><code># 1. تسطيب المكتبات
+pip install -r requirements.txt
+
+# 2. إعداد API Key — حط GROQ_API_KEY في ملف .env
+
+# 3. التشغيل
+python agent.py</code></pre>
+</div>
+
+<div class="card warning">
+    <h4>💡 ملاحظة مهمة</h4>
+    <p>لو مكتبة مش متسطبة، يوبي <strong>مش بيقع</strong> — بيقفل الميزة اللي محتاجاها بس:</p>
+    <ul>
+        <li>من غير <code>livekit</code> → مفيش AEC</li>
+        <li>من غير موديل نداء → بيرجع لـ Whisper</li>
+        <li>من غير Piper → بيفضل على Edge</li>
+    </ul>
+</div>
+
+<!-- ═══════════════ SECTION 9: SUMMARY ═══════════════ -->
+<h2 id="summary">📊 ٩. الملخص</h2>
+
+<div class="status-grid">
+    <div class="status-item"><span class="check">✅</span> نداء صوتي أوفلاين</div>
+    <div class="status-item"><span class="check">✅</span> إلغاء صدى WebRTC AEC3</div>
+    <div class="status-item"><span class="check">✅</span> عقل ذكي بـ tool calling</div>
+    <div class="status-item"><span class="check">✅</span> كلام أونلاين + أوفلاين</div>
+    <div class="status-item"><span class="check">✅</span> واجهة Dynamic Island حيّة</div>
+    <div class="status-item"><span class="check">✅</span> ذاكرة سياق ذكية</div>
+    <div class="status-item"><span class="check">✅</span> رفيق ألعاب</div>
+    <div class="status-item"><span class="check">✅</span> رؤية الشاشة (computer use)</div>
+    <div class="status-item"><span class="check">✅</span> اقتراحات ذكية</div>
+    <div class="status-item"><span class="check">✅</span> تعلم ذاتي</div>
+    <div class="status-item"><span class="check">✅</span> حماية + offline fallback</div>
+    <div class="status-item"><span class="check">✅</span> قياس أداء</div>
+    <div class="status-item"><span class="check">✅</span> دعم عربي مصري + إنجليزي</div>
+    <div class="status-item"><span class="check">✅</span> إحصائيات وتقارير</div>
+</div>
+
+<hr>
+
+<div class="card" style="text-align: center; margin: 40px 0;">
+    <p style="font-size: 18px; color: var(--text-muted);">
+        <strong>يوبي</strong> — مشروع مساعد صوتي شخصي متكامل. بدأ كأداة بسيطة وتطور لنظام كامل بعقل ذكي وودان حقيقية وشخصية حيّة.
+        <br>كل جزء فيه مصمم إنه يشتغل <strong>مستقل</strong> — لو ميزة مش متاحة، الباقي بيفضل شغال.
+    </p>
+    <p style="font-size: 14px; color: var(--text-muted); margin-top: 20px;">
+        تم إنشاء هذا التوثيق تلقائياً من تحليل كود المشروع — أكتوبر 2026
+    </p>
+</div>
+
+</div>
+
+</body>
+</html>

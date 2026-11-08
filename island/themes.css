@@ -1,0 +1,14 @@
+/* Yobi themes: every theme sets the same six colours. Shared by the island and Settings. */
+:root, [data-theme="faience"] {
+  --glaze: #0E2A52;        /* the tab's body: Egyptian-blue glaze */
+  --faience: #1E5AA8;      /* edges, quiet buttons, the resting line */
+  --turquoise: #3CC2B4;    /* Yobi's voice: listening and thinking */
+  --sand: #F1E7D0;         /* everything Yobi writes */
+  --gold: #E3B04B;         /* yes / done */
+  --carnelian: #C8402E;    /* something went wrong */
+}
+[data-theme="night"] { --glaze: #0A1424; --faience: #23406B; --turquoise: #45D0C1; --sand: #EDE6D6; --gold: #E3B04B; --carnelian: #D0533B; }
+[data-theme="papyrus"] { --glaze: #E8DCC0; --faience: #A08A5E; --turquoise: #0F7A70; --sand: #10294F; --gold: #A87412; --carnelian: #B23A26; }
+[data-theme="nile"] { --glaze: #0D3B3B; --faience: #1F6E6A; --turquoise: #7FD6C2; --sand: #EFE8D4; --gold: #E3B04B; --carnelian: #D0533B; }
+[data-theme="carnelian"] { --glaze: #3B1712; --faience: #7A3527; --turquoise: #E8A25B; --sand: #F3E6D8; --gold: #E9C46A; --carnelian: #FF6B4F; }
+

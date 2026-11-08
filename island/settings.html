@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:">
+  <title>إعدادات يوبي</title>
+  <link rel="stylesheet" href="themes.css">
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <nav class="side" aria-label="أقسام الإعدادات">
+    <h1>إعدادات يوبي</h1>
+    <input type="search" id="find" class="find" placeholder="دوّر في الإعدادات…" aria-label="دوّر في الإعدادات" autocomplete="off">
+    <a href="#s-look">الشكل</a>
+    <a href="#s-shows">الجزيرة بتعرض إيه</a>
+    <a href="#s-moments">لحظات وإضافات</a>
+    <a href="#s-prayer">الصلاة</a>
+    <a href="#s-focus">التركيز</a>
+    <a href="#s-remind">الأذكار</a>
+    <a href="#s-meet">الاجتماعات</a>
+    <a href="#s-keys">الاختصار والشاشة</a>
+    <p class="no-match" id="no-match" hidden>مفيش إعداد بالاسم ده</p>
+    <p class="saved" id="saved" role="status" aria-live="polite"></p>
+  </nav>
+
+  <main id="form" aria-busy="true">
+    <section id="s-look">
+      <h2>شكل الجزيرة</h2>
+      <div class="preview" aria-hidden="true">
+        <div class="preview-tab">
+          <p class="preview-words">تمام، فتحت ديسكورد</p>
+          <span class="preview-face"><i></i><i></i></span>
+          <svg class="preview-line" viewBox="0 0 40 12" preserveAspectRatio="none"><path d="M0 5 Q20 12 40 5"/></svg>
+        </div>
+      </div>
+      <div class="themes" id="themes" role="radiogroup" aria-label="شكل الجزيرة"></div>
+      <label class="check"><input type="checkbox" data-s="island.reduce_motion"> حركة أقل</label>
+      <button type="button" class="try" data-try="reply">جرّب على الجزيرة</button>
+    </section>
+
+    <section id="s-shows">
+      <h2>الجزيرة بتعرض إيه</h2>
+      <label class="check"><input type="checkbox" data-s="island.idle_clock"> الساعة على الجزيرة وهي هادية</label>
+      <label class="check"><input type="checkbox" data-s="island.music_tab"> الأغنية اللي شغالة</label>
+      <label class="check"><input type="checkbox" data-s="island.track_peek"> اسم الأغنية لما تتغير</label>
+      <label class="check"><input type="checkbox" data-s="island.downloads"> التحميلات اللي في فولدر التحميلات</label>
+      <label class="check"><input type="checkbox" data-s="island.screenshot_toast"> لقطات الشاشة والصور اللي بتنسخها</label>
+      <label class="check"><input type="checkbox" data-s="island.clipboard_history"> سجل الحافظة
+        <small>بيتحفظ في الذاكرة بس لحد ما يوبي يتقفل، وبيتجاهل كلمات السر</small></label>
+      <label class="check"><input type="checkbox" data-s="island.privacy_dots"> نقطة لما برنامج يستخدم المايك أو الكاميرا</label>
+      <label class="check"><input type="checkbox" data-s="island.hide_fullscreen"> تستخبى وقت الألعاب والأفلام اللي على الشاشة كلها
+        <small>يوبي والأذان بيظهروا برضه</small></label>
+    </section>
+
+    <section id="s-moments">
+      <h2>لحظات وإضافات</h2>
+      <label class="check"><input type="checkbox" data-s="island.weather"> الطقس في مدينة الصلاة</label>
+      <label class="check"><input type="checkbox" data-s="island.net_toasts"> قولّي لما النت يفصل أو يرجع</label>
+      <label class="check"><input type="checkbox" data-s="island.smart_clipboard"> الحافظة الذكية
+        <small>لينك تفتحه، لون تشوفه، حسبة تتحل، أو عدد كلمات النص الطويل</small></label>
+      <label class="check"><input type="checkbox" data-s="island.morning_brief"> صباح الخير أول ما تقعد على الجهاز</label>
+      <label class="check"><input type="checkbox" data-s="island.welcome_back"> أهلا رجعت، باللي حصل وإنت مش موجود</label>
+      <label class="check"><input type="checkbox" data-s="island.wellbeing"> فكّرني آخد بريك بعد ٥٠ دقيقة شغل</label>
+      <label class="check"><input type="checkbox" data-s="island.celebrate"> احتفال صغير لما أكمّل هدف</label>
+      <label class="check"><input type="checkbox" data-s="island.radio_pause_prayer"> وقّف إذاعة القرآن وقت الأذان</label>
+      <label class="check"><input type="checkbox" data-s="island.battery_saver"> توفير البطارية: من غير حركة لما البطارية تقل</label>
+      <div class="row">
+        <label>لما البطارية توصل <span class="unit"><input type="number" min="10" max="100" data-s="island.battery_saver_at" data-num> ٪</span></label>
+      </div>
+      <button type="button" class="try" data-try="brief">جرّب صباح الخير</button>
+    </section>
+
+    <section id="s-prayer">
+      <h2>الصلاة</h2>
+      <div class="row">
+        <label>المدينة <select id="city"></select></label>
+        <label>الطريقة <select data-s="daily.method">
+          <option value="EGYPT">الهيئة المصرية العامة للمساحة</option>
+          <option value="MAKKAH">أم القرى، مكة</option>
+          <option value="MWL">رابطة العالم الإسلامي</option>
+          <option value="KARACHI">جامعة العلوم الإسلامية، كراتشي</option>
+          <option value="ISNA">أمريكا الشمالية (ISNA)</option>
+        </select></label>
+      </div>
+      <div class="row" id="coords">
+        <label>خط العرض <input type="number" step="0.0001" min="-66" max="66" data-s="daily.lat" data-num></label>
+        <label>خط الطول <input type="number" step="0.0001" min="-180" max="180" data-s="daily.lon" data-num></label>
+      </div>
+      <div class="row">
+        <label>العصر <select data-s="daily.asr">
+          <option value="standard">الجمهور (شافعي، مالكي، حنبلي)</option>
+          <option value="hanafi">الحنفي</option>
+        </select></label>
+        <label>نبّهني قبلها بـ <span class="unit"><input type="number" min="0" max="30" data-s="daily.prayer_soon_min" data-num> دقيقة</span></label>
+      </div>
+      <label class="check"><input type="checkbox" data-s="daily.prayer_alerts"> نبّهني بمواعيد الصلاة</label>
+      <button type="button" class="try" data-try="adhan">جرّب تنبيه الأذان</button>
+    </section>
+
+    <section id="s-focus">
+      <h2>جلسات التركيز</h2>
+      <div class="row three">
+        <label>التركيز <span class="unit"><input type="number" min="5" max="120" data-s="daily.focus_min" data-num> دقيقة</span></label>
+        <label>الراحة <span class="unit"><input type="number" min="1" max="60" data-s="daily.break_min" data-num> دقيقة</span></label>
+        <label>الراحة الطويلة <span class="unit"><input type="number" min="5" max="60" data-s="daily.long_break_min" data-num> دقيقة</span></label>
+      </div>
+      <p class="note">كل رابع راحة بتبقى طويلة.</p>
+    </section>
+
+    <section id="s-remind">
+      <h2>الأذكار والأدعية والآيات</h2>
+      <label class="check"><input type="checkbox" data-s="daily.reminders"> فكّرني</label>
+      <div class="row">
+        <label>كل <span class="unit"><input type="number" min="1" max="240" data-s="daily.remind_every_min" data-num> دقيقة</span></label>
+        <label>وتفضل ظاهرة <span class="unit"><input type="number" min="5" max="300" data-s="daily.remind_for_s" data-num> ثانية</span></label>
+      </div>
+      <label class="check"><input type="checkbox" id="quiet-on"> ساعات هادية من غير تذكير</label>
+      <div class="row" id="quiet-times">
+        <label>من <input type="time" id="quiet-from"></label>
+        <label>لحد <input type="time" id="quiet-to"></label>
+      </div>
+      <button type="button" class="try" data-try="reminder">جرّب تذكير</button>
+    </section>
+
+    <section id="s-meet">
+      <h2>الاجتماعات</h2>
+      <p class="note">حط الرابط السري بصيغة iCal من تقويم جوجل أو Outlook، ويوبي هينبهك قبل كل اجتماع بخمس دقايق. الرابط بيتحفظ على جهازك بس.</p>
+      <div class="row link">
+        <input type="password" id="ical" dir="ltr" autocomplete="off" spellcheck="false" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" aria-label="رابط iCal">
+        <button type="button" id="ical-show">إظهار</button>
+        <button type="button" id="ical-save" class="primary">احفظ</button>
+      </div>
+    </section>
+
+    <section id="s-keys">
+      <h2>الاختصار والشاشة</h2>
+      <div class="row">
+        <label>اختصار فتح الجزيرة <select data-s="island.shortcut">
+          <option value="Ctrl+Alt+I">Ctrl + Alt + I</option>
+          <option value="Ctrl+Alt+Space">Ctrl + Alt + Space</option>
+          <option value="Ctrl+Shift+Space">Ctrl + Shift + Space</option>
+          <option value="Alt+Shift+Y">Alt + Shift + Y</option>
+          <option value="">من غير اختصار</option>
+        </select></label>
+        <label>الجزيرة تظهر على <select id="display"></select></label>
+      </div>
+      <label class="check"><input type="checkbox" data-s="island.autostart"> شغّل يوبي لما أفتح الويندوز
+        <small>لحسابك بس، ومن غير شباك أسود</small></label>
+      <p class="note">بعد الاختصار: الأسهم يمين وشمال بتقلّب الصفحات، و Tab بيتنقل بين الأزرار، و Esc بيقفل. اتكلم مع يوبي من غير ما تنده: Ctrl + Alt + Y.</p>
+    </section>
+  </main>
+  <script src="settings.js"></script>
+</body>
+</html>

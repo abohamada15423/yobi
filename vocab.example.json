@@ -1,0 +1,9 @@
+{
+  "friends": ["كريم", "أحمد", "Mido"],
+  "extra": ["Valorant", "Rocket League", "Discord", "OBS"],
+  "fixes": {
+    "فالورنت": "Valorant",
+    "ديسكور": "Discord",
+    "روكت ليج": "Rocket League"
+  }
+}

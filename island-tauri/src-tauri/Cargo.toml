@@ -1,0 +1,30 @@
+[package]
+name = "yobi-island"
+version = "2.0.0"
+description = "Yobi's island: the window. Python (agent.py) owns every decision."
+edition = "2021"
+
+[lib]
+name = "yobi_island_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri-plugin-global-shortcut = "2"
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Shell", "Win32_Graphics_Gdi", "Win32_Storage_FileSystem"] }
+# file icons as PNG (already in the build through tauri), and dragging a shelf file into another app
+png = "0.18"
+base64 = "0.21"
+drag = "2.1"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

@@ -1,0 +1,3 @@
+# Build output can reach several GB: keep it out of OneDrive (and out of AppData, see electron_island.YOBI_HOME).
+[build]
+target-dir = "C:/Users/mh469/.yobi/tauri-target"

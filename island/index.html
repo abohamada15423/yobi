@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src https://backup.qurango.net https://stream.radiojar.com">
+  <title>Yobi</title>
+  <link rel="stylesheet" href="themes.css">
+  <link rel="stylesheet" href="island.css">
+</head>
+<body>
+  <div class="tab" id="tab" data-state="idle" data-mode="idle">
+    <img class="live-art" id="live-art" alt="" hidden>
+    <span class="live-time" id="live-time" hidden></span>
+    <span class="idle-clock" id="idle-clock" hidden></span>
+    <span class="dots" id="dots" hidden><i class="dot mic" id="dot-mic" hidden></i><i class="dot cam" id="dot-cam" hidden></i></span>
+    <div class="inner" id="inner">
+      <!-- glance: clock and machine, shown when you hover the island -->
+      <section class="glance" id="glance" hidden>
+        <p class="clock"><span class="time" id="clock-time"></span><span class="date" id="clock-date"></span><span class="date" id="clock-hijri"></span><span class="date wx" id="wx" hidden></span></p>
+        <div class="stats">
+          <div class="stat"><span class="stat-name">المعالج</span><span class="meter"><b id="cpu-fill"></b></span><span class="stat-val" id="cpu-val">–</span></div>
+          <div class="stat"><span class="stat-name">الرامات</span><span class="meter"><b id="ram-fill"></b></span><span class="stat-val" id="ram-val">–</span></div>
+          <div class="stat" id="bat-stat" hidden><span class="stat-name">البطارية</span><span class="meter"><b id="bat-fill"></b></span><span class="stat-val" id="bat-val"></span></div>
+        </div>
+      </section>
+
+      <!-- what's playing: full card in the panel, short card when the track changes -->
+      <section class="now" id="now" hidden>
+        <img class="art" id="art" alt="">
+        <div class="track">
+          <p class="title" id="m-title" dir="auto"></p>
+          <p class="artist" id="m-artist" dir="auto"></p>
+        </div>
+        <div class="controls" id="m-controls" dir="ltr">
+          <button type="button" class="icon" data-media="prev" aria-label="الأغنية اللي فاتت"></button>
+          <button type="button" class="icon play" data-media="toggle" id="m-toggle" aria-label="وقّف"></button>
+          <button type="button" class="icon" data-media="next" aria-label="الأغنية الجاية"></button>
+        </div>
+        <div class="timeline" id="m-timeline" dir="ltr">
+          <span class="t" id="m-pos"></span>
+          <span class="bar" id="m-bar" role="slider" tabindex="0" aria-label="مكان الأغنية" aria-valuemin="0" aria-valuemax="100"><b id="m-fill"></b></span>
+          <span class="t" id="m-dur"></span>
+        </div>
+      </section>
+
+      <!-- your day: next prayer, focus session, water -->
+      <section class="day" id="day" hidden>
+        <button type="button" class="slot" id="slot-prayer" title="مواقيت الصلاة النهارده">
+          <span class="slot-name" id="pr-name">الصلاة</span>
+          <span class="slot-val" id="pr-in"></span>
+          <span class="meter"><b id="pr-fill"></b></span>
+        </button>
+        <div class="slot" id="slot-focus">
+          <span class="slot-name" id="fc-name">تركيز</span>
+          <span class="slot-val" id="fc-val"></span>
+          <span class="meter"><b id="fc-fill"></b></span>
+          <span class="slot-acts" id="fc-acts"></span>
+        </div>
+        <div class="slot" id="slot-water" hidden>
+          <span class="slot-name">مياه</span>
+          <span class="slot-val" id="wt-val"></span>
+          <span class="meter"><b id="wt-fill"></b></span>
+          <span class="slot-acts"><button type="button" class="mini" id="wt-add" aria-label="شربت كوباية مياه" title="شربت كوباية">+</button></span>
+        </div>
+      </section>
+      <div class="dl-row" id="dl-row" hidden>
+        <span class="dl-name" id="dl-name" dir="auto"></span>
+        <span class="dl-meta" id="dl-meta"></span>
+      </div>
+      <p class="privacy-row" id="privacy-row" hidden></p>
+      <div class="meeting" id="meeting" hidden>
+        <span class="meeting-text" id="mt-text" dir="auto"></span>
+        <button type="button" class="mini wide" id="mt-join">انضم</button>
+      </div>
+
+      <!-- today's prayer times -->
+      <section class="prayer-page" id="prayer-page" hidden>
+        <div class="pp-head">
+          <p class="pp-title">مواقيت الصلاة <span class="pp-city" id="pp-city"></span></p>
+          <span class="group">
+            <button type="button" class="mini wide" data-page="radio">إذاعة القرآن</button>
+            <button type="button" class="mini wide" id="pp-back">رجوع</button>
+          </span>
+        </div>
+        <ol class="pp-list" id="pp-list"></ol>
+      </section>
+
+      <!-- pinned apps: a click opens the app, or brings its window to the front -->
+      <section class="apps-page" id="apps-page" hidden>
+        <div class="page-head">
+          <p class="pp-title">التطبيقات</p>
+          <button type="button" class="mini wide" id="apps-edit" aria-pressed="false">تعديل</button>
+        </div>
+        <ul class="apps-grid" id="apps-grid"></ul>
+        <div class="apps-picker" id="apps-picker" hidden>
+          <input id="apps-search" dir="auto" autocomplete="off" placeholder="دوّر على برنامج أو لعبة…" aria-label="دوّر على برنامج">
+          <ul class="apps-list" id="apps-list"></ul>
+        </div>
+      </section>
+
+      <!-- Qur'an radio (stations from mp3quran.net) -->
+      <section class="radio-page" id="radio-page" hidden>
+        <div class="page-head">
+          <p class="pp-title">إذاعة القرآن</p>
+          <button type="button" class="mini wide" data-page="prayer">رجوع</button>
+        </div>
+        <div class="radio-now">
+          <button type="button" class="icon play" id="rd-toggle" aria-label="شغّل"></button>
+          <div class="radio-info">
+            <p class="radio-name" id="rd-name" dir="auto">اختار قارئ من تحت</p>
+            <p class="radio-state" id="rd-state"></p>
+          </div>
+          <input type="range" min="0" max="100" id="rd-volume" aria-label="الصوت">
+        </div>
+        <input id="rd-search" dir="auto" autocomplete="off" placeholder="دوّر على قارئ…" aria-label="دوّر على قارئ">
+        <ul class="radio-list" id="rd-list"></ul>
+      </section>
+
+      <!-- files you dropped on the island -->
+      <section class="shelf-page" id="shelf-page" hidden>
+        <div class="page-head">
+          <p class="pp-title">الرف</p>
+          <button type="button" class="mini wide" id="shelf-clear">فضّي الرف</button>
+        </div>
+        <p class="page-empty" id="shelf-empty">اسحب ملف أو فولدر على الجزيرة عشان تلاقيه هنا بسرعة</p>
+        <ul class="shelf-list" id="shelf-list"></ul>
+      </section>
+
+      <!-- text you copied, newest first (kept in memory only) -->
+      <section class="clips-page" id="clips-page" hidden>
+        <div class="page-head">
+          <p class="pp-title">الحافظة</p>
+          <button type="button" class="mini wide" id="clips-clear">امسح</button>
+        </div>
+        <p class="page-empty" id="clips-empty">أي نص تنسخه هيظهر هنا، ودوسة عليه تنسخه تاني</p>
+        <ul class="clip-list" id="clip-list"></ul>
+      </section>
+
+      <!-- what Yobi said and showed lately (kept until Yobi closes) -->
+      <section class="history-page" id="history-page" hidden>
+        <div class="page-head">
+          <p class="pp-title">اللي فات</p>
+          <button type="button" class="mini wide" id="history-clear">امسح</button>
+        </div>
+        <p class="page-empty" id="history-empty">لسه مفيش حاجة. ردود يوبي وتنبيهاته هتظهر هنا</p>
+        <ol class="history-list" id="history-list"></ol>
+      </section>
+
+      <!-- notices: adhan, focus, reminders, meetings, downloads, screenshots -->
+      <section class="notice" id="notice" hidden>
+        <p class="notice-kind" id="nt-kind"></p>
+        <img class="notice-img" id="nt-img" alt="" hidden>
+        <span class="swatch-big" id="nt-swatch" hidden></span>
+        <p class="notice-text" id="nt-text" dir="auto"></p>
+        <p class="notice-sub" id="nt-sub" dir="auto"></p>
+        <div class="choices" id="nt-buttons" hidden></div>
+      </section>
+
+      <!-- short notices: volume, brightness, caps lock, keyboard, battery -->
+      <section class="hud" id="hud" hidden>
+        <span class="hud-icon" id="hud-icon" aria-hidden="true"></span>
+        <span class="hud-label" id="hud-label" dir="auto"></span>
+        <span class="hud-value" id="hud-value" dir="auto"></span>
+      </section>
+
+      <p class="status" id="status" dir="auto" aria-live="polite"></p>
+      <p class="words" id="words" dir="auto" aria-live="polite"></p>
+      <form class="ask" id="chat" hidden>
+        <input id="chat-input" dir="auto" autocomplete="off" placeholder="اكتب ليوبي…" aria-label="رسالة ليوبي">
+      </form>
+      <div class="choices" id="choices" hidden></div>
+      <div class="dock" id="dock">
+        <span class="group">
+          <button type="button" data-quick="listen" data-icon="mic" title="كلّم يوبي من غير ما تنده">اتكلم</button>
+          <button type="button" id="open-chat" data-icon="pen" title="اكتب رسالة ليوبي">اكتب</button>
+          <button type="button" id="open-menu" class="more square" data-icon="more" aria-label="خيارات تانية" aria-expanded="false"></button>
+        </span>
+        <span class="group">
+          <button type="button" class="square" data-page="apps" data-icon="grid" aria-label="التطبيقات" aria-pressed="false"></button>
+          <button type="button" class="square" data-page="shelf" data-icon="tray" aria-label="الرف" aria-pressed="false"></button>
+          <button type="button" class="square" data-page="clips" data-icon="clip" aria-label="الحافظة" aria-pressed="false"></button>
+        </span>
+      </div>
+      <div class="menu" id="menu" hidden role="menu">
+        <button type="button" role="menuitemcheckbox" data-menu="toggle_listen" aria-checked="true">الاستماع</button>
+        <button type="button" role="menuitemcheckbox" data-menu="toggle_voice" aria-checked="false">الرد بالصوت</button>
+        <button type="button" role="menuitemcheckbox" data-menu="toggle_companion" aria-checked="true">أسئلة يوبي</button>
+        <button type="button" role="menuitem" data-menu="history">اللي فات</button>
+        <button type="button" role="menuitem" data-menu="settings">الإعدادات</button>
+        <button type="button" role="menuitem" data-menu="demo">جرّب الحالات</button>
+        <button type="button" role="menuitem" data-menu="quit" class="quit">اقفل يوبي</button>
+      </div>
+    </div>
+    <span class="face" id="face" aria-hidden="true"><i class="eye"></i><i class="eye"></i></span>
+    <svg class="line" id="line" viewBox="0 0 520 24" preserveAspectRatio="none" aria-hidden="true">
+      <path class="rest" id="line-rest" d=""></path>
+      <path id="line-path" d="M0 12 L520 12"></path>
+    </svg>
+  </div>
+  <script src="island.js"></script>
+</body>
+</html>

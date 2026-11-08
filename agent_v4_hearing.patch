@@ -1,0 +1,296 @@
+--- a/agent.py	2026-10-03 15:08:08.916380812 +0000
++++ b/agent.py	2026-10-03 15:08:08.928380987 +0000
+@@ -55,6 +55,58 @@
+ from sounds import play_wake, play_success, play_error, play_listening, play_hide
+ from tray_icon import YobiTray
+ 
++# ── v4 hearing (all optional — Yobi still runs without any of them) ──
++try:
++    import latency as yobi_latency
++except Exception:
++    yobi_latency = None
++try:
++    from audio_io import get_audio_engine
++except Exception:
++    get_audio_engine = None
++try:
++    from wake_word import WakeWordDetector
++except Exception:
++    WakeWordDetector = None
++try:
++    from stt_engine import STTEngine
++except Exception:
++    STTEngine = None
++try:
++    from vocab import PersonalVocab
++except Exception:
++    PersonalVocab = None
++
++# Overridable from config.json → "hearing": {...}
++HEARING_DEFAULTS = {
++    "audio_engine": True,          # shared mic+speaker engine (needed for AEC)
++    "aec": True,                   # WebRTC echo cancellation (pip install livekit)
++    "noise_suppression": True,
++    "agc": False,
++    "aec_extra_delay_ms": 0,
++    "input_device": None,
++    "output_device": None,
++    "wake_model": "models/ya_yobi.onnx",   # openWakeWord model (or e.g. "hey_jarvis")
++    "wake_threshold": 0.5,
++    "wake_patience": 2,
++    "wake_verify_whisper": False,  # double-check hits with Whisper (new models)
++    "wake_debug": False,
++    "barge_in": "auto",            # auto | wake | speech | off
++    "stt_engine": "auto",          # auto | groq-turbo | groq-v3 | local
++    "stt_order": ["groq-turbo", "local", "groq-v3"],
++    "stt_local_model": "large-v3-turbo",
++    "stt_local_device": "cuda",
++    "stt_local_compute": "float16",
++    "stt_warmup_local": True,      # preload local model → instant offline fallback
++    "vocab_max_chars": 360,
++    "tts_backend": None,           # auto | edge | piper (Settings choice wins)
++    "piper_model": "voices/ar_JO-kareem-medium.onnx",
++    "piper_length_scale": None,
++    "piper_exe": None,
++    "latency_log": True,
++    "latency_csv": "latency_log.csv",
++}
++
+ # ── New modules (backward-compatible) ──────────────────────────
+ try:
+     from yobi_logger import log as yobi_log, get_logger, timed
+@@ -332,7 +384,6 @@
+ # ==========================================
+ # 2. Hybrid Whisper Loading
+ # ==========================================
+-print_ar("🧠 جاري تحميل نموذج النداء المحلي (GPU)...")
+ def _load_wake_model():
+     """GPU if available, otherwise CPU (v2 crashed on PCs without NVIDIA)."""
+     size = os.environ.get("YOBI_WAKE_MODEL", "small")
+@@ -344,7 +395,27 @@
+         return WhisperModel(cpu_size, device="cpu", compute_type="int8")
+ 
+ 
+-wake_model = _load_wake_model()
++class _LazyWhisper:
++    """v4: the Whisper wake model loads only when it's really needed (no
++    openWakeWord model) — otherwise the GPU stays free for the command STT."""
++
++    def __init__(self):
++        self._m = None
++        self._lock = threading.Lock()
++
++    def get(self):
++        with self._lock:
++            if self._m is None:
++                print_ar("🧠 جاري تحميل Whisper للنداء...")
++                self._m = _load_wake_model()
++            return self._m
++
++    def transcribe(self, *args, **kwargs):
++        return self.get().transcribe(*args, **kwargs)
++
++
++wake_model = _LazyWhisper()
++_STT = None   # v4 STTEngine, created in voice_loop()
+ 
+ 
+ def transcribe_local(audio, lang, model, initial_prompt=None):
+@@ -364,6 +435,9 @@
+ 
+ 
+ def transcribe_groq(audio, prompt_text="", lang="ar"):
++    # v4: routed through stt_engine (Groq turbo / local GPU, auto fallback)
++    if _STT is not None:
++        return _STT.transcribe(audio, prompt=prompt_text, lang=lang)
+     if _audio_is_silent(audio):
+         return ""
+     try:
+@@ -549,12 +623,84 @@
+     # v3: always-open mic + real VAD + barge-in + hotkey (see audio_input.py).
+     # `recognizer.listen()` / `with mic as source` keep the same signature, so
+     # every existing call below works unchanged.
++    global _STT
++    H = dict(HEARING_DEFAULTS)
++    H.update(CONFIG.get("hearing") or {})
++    _here = os.path.dirname(os.path.abspath(__file__))
++
++    def _abs(p):
++        return p if (not p or os.path.isabs(p) or not str(p).lower().endswith((".onnx", ".tflite", ".csv"))) \
++            else os.path.join(_here, p)
++
++    if yobi_latency is not None:
++        yobi_latency.tracker.configure(csv_path=_abs(H["latency_csv"]) if H["latency_csv"] else None,
++                                       enabled=bool(H["latency_log"]), log=print_ar)
++
++    audio_engine = None
++    if get_audio_engine is not None and H["audio_engine"]:
++        audio_engine = get_audio_engine(
++            create=True, aec=H["aec"], noise_suppression=H["noise_suppression"],
++            agc=H["agc"], input_device=H["input_device"], output_device=H["output_device"],
++            extra_delay_ms=H["aec_extra_delay_ms"], log=print_ar)
++
++    wake_detector = None
++    if WakeWordDetector is not None and H["wake_model"]:
++        try:
++            wake_detector = WakeWordDetector(
++                _abs(H["wake_model"]), threshold=H["wake_threshold"],
++                patience=H["wake_patience"], log=print_ar, debug=H["wake_debug"])
++        except Exception as e:
++            print_ar(f"ℹ️ النداء offline مش شغال ({str(e)[:90]}) — هستخدم Whisper للنداء")
++            wake_detector = None
++    if wake_detector is None:
++        threading.Thread(target=wake_model.get, daemon=True).start()
++
++    vocab = None
++    if PersonalVocab is not None:
++        vocab = PersonalVocab(max_chars=H["vocab_max_chars"],
++                              targets_source=lambda: known_targets)
++
++    if STTEngine is not None:
++        _STT = STTEngine(
++            groq_client, engine=H["stt_engine"], order=H["stt_order"],
++            local_model=H["stt_local_model"], local_device=H["stt_local_device"],
++            local_compute=H["stt_local_compute"], vocab=vocab,
++            is_silent=_audio_is_silent, is_hallucination=_is_hallucination,
++            log=print_ar, prompt_chars=H["vocab_max_chars"])
++        if H["stt_engine"] == "local" or H["stt_warmup_local"]:
++            _STT.warmup()
++
++    try:
++        get_tts_engine().configure(backend=H["tts_backend"], piper_model=H["piper_model"],
++                                   piper_length_scale=H["piper_length_scale"],
++                                   piper_exe=H["piper_exe"])
++    except Exception as e:
++        print_ar(f"⚠️ إعداد TTS: {e}")
++
++    def _verify_wake(audio):
++        t = transcribe_local(audio, "ar", wake_model, initial_prompt="يا يوبي")
++        return any(w in t for w in wake_words)
++
+     recognizer = VADRecognizer(
+         aggressiveness=CONFIG.get("vad_aggressiveness", 2),
+         end_silence_ms=CONFIG.get("end_silence_ms", 600),
+         hotkey=CONFIG.get("hotkey", "ctrl+alt+y"),
+         is_speaking=is_speaking,
+         stop_speaking=stop_speaking,
++        engine=audio_engine,
++        wake=wake_detector,
++        barge_in=H["barge_in"],
++        verify_wake=_verify_wake if (wake_detector and H["wake_verify_whisper"]) else None,
++        log=print_ar,
++    )
++    _tts_status = get_tts_engine().status()
++    print_ar(
++        "👂 السمع: "
++        + ("إلغاء صدى ✅" if recognizer.full_duplex else "إلغاء صدى ❌")
++        + " | " + (f"نداء offline ✅ ({wake_detector.name})" if wake_detector else "نداء بـ Whisper")
++        + " | STT: " + (H["stt_engine"] if _STT else "groq")
++        + f" | TTS: {_tts_status['backend']}"
++        + (" + Piper احتياطي" if _tts_status["piper_available"] else "")
+     )
+     mic = recognizer.microphone()
+ 
+@@ -691,6 +837,8 @@
+     def _on_tool_opened(target, result):
+         context.record("open", target, result)
+         suggestions.record_usage(target)
++        if vocab is not None:
++            vocab.bump(target)
+         chat_engine.set_last_action(result)
+         _maybe_auto_login(target)
+ 
+@@ -761,6 +909,8 @@
+         shown = []
+ 
+         def _on_sentence(sentence):
++            if yobi_latency is not None:
++                yobi_latency.mark("llm_first")
+             shown.append(sentence)
+             display = " ".join(shown)[-300:]
+             island.after(0, lambda d=display: island.set_state("info", d))
+@@ -769,6 +919,8 @@
+         def _on_tool(name, _args):
+             island.after(0, lambda: island.set_state("thinking", "بنفذ... ⚙️"))
+ 
++        if yobi_latency is not None:
++            yobi_latency.mark("llm_start")
+         brain.run(user_text, on_sentence=_on_sentence, extra_context=ctx,
+                   known_targets=known_targets, on_tool=_on_tool)
+         if not shown:
+@@ -1240,6 +1392,8 @@
+             context.record(intent or "open", target_used or command, res)
+             if intent in ("open", None):
+                 suggestions.record_usage(target_used or command)
++                if vocab is not None and target_used:
++                    vocab.bump(target_used)
+             chat_engine.set_last_action(res)
+             # Reinforce learning — this phrase → this action worked
+             learner.record_success(command, target_used or command, intent or "open")
+@@ -1312,6 +1466,16 @@
+         "امسح التعلم. " + apps_hint
+     )
+ 
++    # v4: short command hint + personal vocabulary (apps/games/friends,
++    # most-used first), re-built on every request so new apps show up.
++    _BASE_HINT = ("أوامر عربي/إنجليزي: افتح، اقفل، علي/وطي الصوت، شغل، "
++                  "ابحث عن، اقترح، افحص جهازي، فكرني، علم نفسك إن.")
++
++    def _hint():
++        if vocab is not None:
++            return vocab.prompt(base=_BASE_HINT)
++        return hint_text
++
+     def _process(command, cmd_audio, trusted=False):
+         """Returns False when the conversation should end."""
+         nonlocal chat_mode_active
+@@ -1360,7 +1524,7 @@
+                         phrase_time_limit=15 if chat_mode_active else 8,
+                     )
+ 
+-                command = transcribe_groq(cmd_audio, prompt_text=hint_text)
++                command = transcribe_groq(cmd_audio, prompt_text=_hint())
+                 if not command:
+                     break
+                 if wake_words and any(w in command for w in wake_words):
+@@ -1401,6 +1565,19 @@
+                 time.sleep(0.2)
+                 continue
+ 
++            # v4: offline wake word → Whisper doesn't run until "يا يوبي"
++            if recognizer.has_wake_model:
++                try:
++                    if not recognizer.wait_for_wake(hotkey_wakes=True, timeout=1.0):
++                        continue
++                except HotkeyPressed:
++                    print_ar("⌨️ اتنده بالكيبورد")
++                    _conversation()
++                    continue
++                print_ar(f"👂 سمعت النداء (offline, {recognizer.wake.last_score:.2f})")
++                _conversation()
++                continue
++
+             try:
+                 with mic as source:
+                     audio = recognizer.listen(source, timeout=None,
+@@ -1425,7 +1602,7 @@
+             rest_local = _strip_wake(wake_text)
+             first_command = None
+             if len(rest_local.split()) >= 1 and len(rest_local) >= 3:
+-                full = transcribe_groq(audio, prompt_text="يا يوبي، " + hint_text)
++                full = transcribe_groq(audio, prompt_text="يا يوبي، " + _hint())
+                 first_command = _strip_wake(full) if full else rest_local
+                 if len(first_command) < 2:
+                     first_command = None
+@@ -1494,6 +1671,11 @@
+         island_ui.after(0, lambda: island_ui.set_state("success", "تم التحديث ✅"))
+ 
+     def _tray_quit():
++        try:
++            if yobi_latency is not None and yobi_latency.tracker.stats():
++                print_ar(yobi_latency.tracker.format_summary())
++        except Exception:
++            pass
+         island_ui.after(0, lambda: island_ui.set_state("info", "بقفل يوبي... 👋"))
+         try:
+             stop_speaking()

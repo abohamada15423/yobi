@@ -1,0 +1,29 @@
+{
+  "hearing": {
+    "aec": true,
+    "noise_suppression": true,
+    "aec_extra_delay_ms": 0,
+
+    "wake_model": "models/ya_yobi.onnx",
+    "wake_threshold": 0.5,
+    "wake_patience": 2,
+    "wake_verify_whisper": false,
+    "wake_debug": false,
+
+    "barge_in": "auto",
+
+    "stt_engine": "auto",
+    "stt_order": ["groq-turbo", "local", "groq-v3"],
+    "stt_local_model": "large-v3-turbo",
+    "stt_local_device": "cuda",
+    "stt_local_compute": "float16",
+    "stt_warmup_local": true,
+    "vocab_max_chars": 360,
+
+    "tts_backend": "auto",
+    "piper_model": "voices/ar_JO-kareem-medium.onnx",
+
+    "latency_log": true,
+    "latency_csv": "latency_log.csv"
+  }
+}

@@ -1,0 +1,50 @@
+# ── secrets: never in git ──────────────────────────────────────────
+.env
+# your settings (may hold your calendar link); config.example.json is the shared copy
+config.json
+login_calibration.json
+
+# ── your personal data and voice ───────────────────────────────────
+data/
+wake_data/
+wake_data.zip
+wake_data.rar
+chat_history.json
+companion_data.json
+game_stats.json
+island_state.json
+learned_commands.json
+learning_data.json
+usage_patterns.json
+ui_prefs.json
+vocab.json
+.yobi_runtime.json
+shelf.json
+
+# models trained on your voice and commands (models/README.md says how to make them)
+models/*.onnx
+models/*.joblib
+models/intent_model.json
+
+# caches Yobi rebuilds by itself
+installed_apps_cache.json
+smart_scan_cache.json
+
+# ── build output and tools ─────────────────────────────────────────
+__pycache__/
+*.pyc
+node_modules/
+island-tauri/dist/
+island-tauri/src-tauri/target/
+island-tauri/src-tauri/gen/
+tests/island_views/out/
+tests/island_tauri_views/out/
+
+# old backups (git keeps history from now on)
+*.bak
+*_backup.py
+pre_v7_*/
+latency_log.csv
+
+# the upload server (its own project; has its admin password inside)
+import os.ini

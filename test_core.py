@@ -16,7 +16,7 @@ from media_handler import handle_media_or_search
 from transliteration import normalize_transcription
 from aliases import ARABIC_TO_CANONICAL, normalize_name
 from context_memory import ContextMemory
-from addressing import AddressedClassifier
+from addressing import AddressedClassifier, wake_pattern
 from scheduler import TaskScheduler
 import target_resolver as tr
 from smart_open import exe_matches
@@ -82,6 +82,11 @@ def test_natural_qa():
     assert is_question("الجهاز شغال بقاله قد ايه") is True
     assert try_system_answer("الساعة كام") is not None
     assert try_system_answer("النهاردة كام") is not None
+    # whole words only: "ram" isn't inside "instagram"/"برامج", "ip" isn't inside "zip"
+    for q in ["ايه البرامج اللي عندي", "instagram فين", "فك الملف zip"]:
+        assert try_system_answer(q) is None, q
+    for q in ["كام الرام فاضل", "بالرام كام", "المساحة فاضل قد ايه"]:
+        assert try_system_answer(q) is not None, q
 
 
 def test_alias_and_transliteration():
@@ -119,6 +124,11 @@ def test_context_and_addressing():
     assert cm.resolve_pronoun("في دي لسيات ما تنزلها ايش.") is None
     assert cm.resolve_pronoun("اقفلها") == "euro truck simulator 2"
     assert cm.resolve_pronoun("افتحه تاني") == "euro truck simulator 2"
+
+    wake = wake_pattern(["يوبي", "يا يوبي", "يايوبي", "yobi", "ub", "وبي"])
+    assert wake.search("افتح youtube") is None and wake.search("افتح github") is None
+    assert wake.sub(" ", "يا يوبي افتح youtube").strip() == "افتح youtube"
+    assert wake.search("يايوبي شغل حاجة") and wake.search("Yobi open chrome")
 
     clf = AddressedClassifier(llm_client=None)
     assert clf.is_addressed("يا يوبي افتح ديسكورد") is True

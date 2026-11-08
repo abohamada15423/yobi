@@ -50,12 +50,21 @@ def is_question(command):
     return bool(words & word_indicators)
 
 
+_PREFIX = r"(?:ال|بال|وال|لل|فال|و|ب|ف|ل)?"   # Arabic letters that can come before a word
+
+
+def _has(cmd, words):
+    """True if one of `words` is in `cmd` as a word of its own (an Arabic prefix like ال or بال
+    is fine): "ram" mustn't match "instagram" or "برامج", nor "ip" match "zip"."""
+    return any(re.search(r"(?<!\w)" + _PREFIX + re.escape(w) + r"(?!\w)", cmd) for w in words)
+
+
 def try_system_answer(command):
     """Answer using local system info. Returns a string or None."""
     cmd = (command or "").lower().strip()
 
     # Time (handles both "الساعة كام" and "ساعة كام" / "ساعه كام")
-    if any(w in cmd for w in [
+    if _has(cmd, [
         "الساعة", "الساعه", "ساعة كام", "ساعه كام", "ساعة كم", "ساعه كم",
         "كام الساعة", "كام الساعه", "الوقت كام", "الوقت دلوقتي", "what time",
     ]):
@@ -68,7 +77,7 @@ def try_system_answer(command):
         return f"الساعة {h12}:{now.minute:02d} {period} ⏰"
 
     # Date (only when asking about date/day, not general questions containing "النهارده")
-    if any(w in cmd for w in [
+    if _has(cmd, [
         "التاريخ", "تاريخ النهاردة", "تاريخ النهارده", "تاريخ اليوم",
         "النهاردة ايه", "النهارده ايه", "النهاردة إيه", "النهارده إيه",
         "النهاردة كام", "النهارده كام", "اليوم ايه", "what date", "what day",
@@ -81,7 +90,7 @@ def try_system_answer(command):
         return f"النهاردة {days[now.weekday()]} {now.day}/{now.month}/{now.year} 📅"
 
     # Uptime
-    if any(w in cmd for w in ["uptime", "بقاله قد ايه", "بقاله قد إيه", "شغال من امتى", "مفتوح من امتى"]):
+    if _has(cmd, ["uptime", "بقاله قد ايه", "بقاله قد إيه", "شغال من امتى", "مفتوح من امتى"]):
         boot = psutil.boot_time()
         elapsed = int(time.time() - boot)
         hours, rem = divmod(elapsed, 3600)
@@ -91,7 +100,7 @@ def try_system_answer(command):
         return f"الجهاز شغال بقاله {mins} دقيقة ⏱️"
 
     # GPU
-    if any(w in cmd for w in ["gpu", "كارت الشاشة", "كارت الشاشه", "الفيجا", "حرارة الكارت"]):
+    if _has(cmd, ["gpu", "كارت الشاشة", "كارت الشاشه", "الفيجا", "حرارة الكارت"]):
         try:
             import GPUtil
             gpus = GPUtil.getGPUs()
@@ -107,7 +116,7 @@ def try_system_answer(command):
         return "مش قادر أقرا بيانات كارت الشاشة حالياً 🎮"
 
     # RAM
-    if any(w in cmd for w in ["رام", "رامات", "ram", "الذاكرة", "memory", "الرام"]):
+    if _has(cmd, ["رام", "رامات", "ram", "الذاكرة", "memory", "الرام"]):
         mem = psutil.virtual_memory()
         return (
             f"الرام: {mem.used / (1024**3):.1f}GB / {mem.total / (1024**3):.1f}GB "
@@ -115,13 +124,13 @@ def try_system_answer(command):
         )
 
     # CPU
-    if any(w in cmd for w in [
+    if _has(cmd, [
         "cpu", "بروسيسور", "المعالج", "processor", "سي بي يو",
     ]):
         return f"الـ CPU: {psutil.cpu_percent(interval=0.4)}% استخدام 💻"
 
     # Disk
-    if any(w in cmd for w in [
+    if _has(cmd, [
         "مساحة", "disk", "هارد", "storage", "space", "الهارد", "بارتيشن",
     ]):
         parts = []
@@ -137,7 +146,7 @@ def try_system_answer(command):
         return "💾 " + " | ".join(parts) if parts else None
 
     # IP / Network
-    if any(w in cmd for w in ["ip", "اي بي", "آي بي", "عنوان الشبكة"]):
+    if _has(cmd, ["ip", "اي بي", "آي بي", "عنوان الشبكة"]):
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(("8.8.8.8", 80))
@@ -148,7 +157,7 @@ def try_system_answer(command):
             return "مش متصل بالشبكة حالياً 🌐"
 
     # Battery
-    if any(w in cmd for w in [
+    if _has(cmd, [
         "بطارية", "battery", "الشحن", "charge", "البطارية",
     ]):
         bat = psutil.sensors_battery()

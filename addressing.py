@@ -184,3 +184,13 @@ class AddressedClassifier:
         except Exception:
             # On network failure, assume directed (don't drop real commands)
             return True
+
+
+def wake_pattern(words):
+    """A regex for the wake words as words of their own ("ub" mustn't match inside "youtube",
+    "وبي" not inside "يوبي" when that's a different word). Longest first; None for no words."""
+    if not words:
+        return None
+    alts = "|".join(re.escape(w) for w in sorted(words, key=len, reverse=True))
+    return re.compile(r"(?<!\w)(?:" + alts + r")(?!\w)", re.IGNORECASE)
+

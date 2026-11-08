@@ -19,7 +19,7 @@ from app_scanner import load_or_scan_installed_apps, resolve_target
 from game_scanner import scan_all_games, bounded_game_search
 from aliases import ARABIC_TO_CANONICAL, normalize_name
 from transliteration import normalize_transcription
-from addressing import AddressedClassifier
+from addressing import AddressedClassifier, wake_pattern
 from file_ops import match_file_command
 from device_control import match_device_command
 from smart_scan import run_full_scan
@@ -1215,7 +1215,7 @@ def voice_loop(island, agent, known_targets, listening_enabled):
 
     def _verify_wake(audio):
         t = transcribe_local(audio, "ar", wake_model, initial_prompt="يا يوبي")
-        return any(w in t for w in wake_words)
+        return _has_wake(t)
 
     recognizer = VADRecognizer(
         aggressiveness=CONFIG.get("vad_aggressiveness", 2),
@@ -1248,6 +1248,12 @@ def voice_loop(island, agent, known_targets, listening_enabled):
 
     wake_words = CONFIG.get("wake_words",
                             ["يوبي", "يو بي", "yobi", "youbi", "yopi", "يا يوبي", "يوبى", "يايوبي", "يا يوبى", "بوبي", "يا بوبي"])
+    # a wake word counts only as a word of its own: "ub" mustn't match inside "youtube"
+    _WAKE_RE = wake_pattern(wake_words)
+
+    def _has_wake(text):
+        return bool(_WAKE_RE and _WAKE_RE.search(text or ""))
+
     refresh_phrases = ["حدث البرامج", "refresh apps"]
     scan_phrases = refresh_phrases + [
         "افحص جهازي", "فحص جهازي", "فحص الجهاز", "فحص شامل",
@@ -1438,7 +1444,7 @@ def voice_loop(island, agent, known_targets, listening_enabled):
 
     def _barge_in_check(audio):
         t = transcribe_local(audio, "ar", wake_model, initial_prompt="يا يوبي")
-        hit = any(w in t for w in wake_words)
+        hit = _has_wake(t)
         if hit:
             print_ar(f"✋ قاطعتني: '{t}'")
         return hit
@@ -2208,9 +2214,7 @@ def voice_loop(island, agent, known_targets, listening_enabled):
     print_ar("\n[ Yobi is sleeping 💤. Say 'يا يوبي' to summon the Island! ]")
 
     def _strip_wake(text):
-        t = text
-        for w in sorted(wake_words, key=len, reverse=True):
-            t = t.replace(w, " ")
+        t = _WAKE_RE.sub(" ", text) if _WAKE_RE else text
         return re.sub(r"^(?:[\s،,.!؟?]|يا(?=\s|$))+", "", t).strip(" ،,.!؟?")
 
     apps_hint = ", ".join([str(t) for t in known_targets if isinstance(t, str)][:20])
@@ -2298,7 +2302,7 @@ def voice_loop(island, agent, known_targets, listening_enabled):
                         island.after(0, lambda: island.set_state("listening", "سامعك.. اتكلم 🎤"))
                         continue
                     break
-                if wake_words and any(w in command for w in wake_words):
+                if _has_wake(command):
                     command = _strip_wake(command)
                     if not command or len(command) < 2:
                         conv_round = 0
@@ -2370,7 +2374,7 @@ def voice_loop(island, agent, known_targets, listening_enabled):
                     continue
 
             wake_text = transcribe_local(audio, "ar", wake_model, initial_prompt="يا يوبي، يوبي")
-            if not any(w in wake_text for w in wake_words):
+            if not _has_wake(wake_text):
                 # Quick Groq Turbo check in case local small/base model misheard "يوبي"
                 wake_text_g = transcribe_groq(audio, prompt_text="يا يوبي، يوبي، افتح، شغل")
                 if wake_text_g:
@@ -2378,7 +2382,7 @@ def voice_loop(island, agent, known_targets, listening_enabled):
             if wake_text:
                 print_ar(f"👂 سمعت: '{wake_text}'")
 
-            if not any(w in wake_text for w in wake_words):
+            if not _has_wake(wake_text):
                 continue
 
             rest_local = _strip_wake(wake_text)

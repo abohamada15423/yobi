@@ -613,8 +613,7 @@ class GeminiClient:
             f"Return ONLY the exact spoken words with no extra commentary or punctuation. "
             f"Context vocabulary: {prompt[:250]}"
         )
-        url = self.NATIVE_URL.format(model=self.default_model, key=self.api_key)
-        body = {
+        body = json.dumps({
             "contents": [{
                 "parts": [
                     {"text": sys_inst},
@@ -622,15 +621,23 @@ class GeminiClient:
                 ]
             }],
             "generationConfig": {"temperature": 0.0, "maxOutputTokens": 120},
-        }
-        req = urllib.request.Request(
-            url,
-            data=json.dumps(body).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            res = json.loads(resp.read().decode("utf-8"))
+        }).encode("utf-8")
+        # a model that's out of quota (429) or busy (503) mustn't leave the command empty: try the next one
+        res, last_err = None, None
+        for m in self._candidate_models():
+            req = urllib.request.Request(
+                self.NATIVE_URL.format(model=m, key=self.api_key),
+                data=body, headers={"Content-Type": "application/json"}, method="POST")
+            try:
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    res = json.loads(resp.read().decode("utf-8"))
+                break
+            except urllib.error.HTTPError as e:
+                last_err = e
+                if e.code not in (429, 500, 503, 404):
+                    raise
+        if res is None:
+            raise last_err or RuntimeError("no model could transcribe")
         cands = res.get("candidates") or []
         text = ""
         if cands:

@@ -25,6 +25,7 @@ import threading
 import time
 import urllib.request
 import webbrowser
+from island_tools import tr
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -440,7 +441,7 @@ class IslandDaily:
             eid = f"m{i}_{s_ms}"
             if link:
                 links[eid] = link
-            events.append({"id": eid, "title": str(ev.get("SUMMARY") or "اجتماع")[:80],
+            events.append({"id": eid, "title": str(ev.get("SUMMARY") or tr("اجتماع", "Meeting"))[:80],
                            "start": s_ms, "end": e_ms, "has_link": bool(link)})
         events.sort(key=lambda x: x["start"])
         self._events, self._links = events[:8], links

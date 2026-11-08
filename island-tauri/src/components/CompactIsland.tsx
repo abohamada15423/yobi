@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { compactView, hasDots, useIsland, type Compact } from '../store';
 import { spring } from '../motion';
 import { useSongColor } from '../songColor';
+import { T, dir, fmt } from '../i18n';
 
 /** each compact view's size; the privacy dots add a little room at the trailing edge */
 const SIZE: Record<Compact, [number, number]> = {
@@ -17,12 +18,8 @@ export function compactSize(view: Compact, dots: boolean): [number, number] {
   return [w + (dots && view !== 'thin' ? DOTS_W : 0), h];
 }
 
-const nf = new Intl.NumberFormat('ar-EG');
-const nf2 = new Intl.NumberFormat('ar-EG', { minimumIntegerDigits: 2 });
-const clockFmt = new Intl.DateTimeFormat('ar-EG', { hour: 'numeric', minute: '2-digit' });
-export const mmss = (s: number) => { s = Math.max(0, Math.floor(s || 0)); return `${nf.format(Math.floor(s / 60))}:${nf2.format(s % 60)}`; };
-export const fmtBytes = (b: number) =>
-  b >= 1e9 ? `${nf.format(+(b / 1e9).toFixed(1))} ج.ب` : b >= 1e6 ? `${nf.format(+(b / 1e6).toFixed(1))} م.ب` : `${nf.format(Math.round(b / 1e3))} ك.ب`;
+export const mmss = fmt.mmss;
+export const fmtBytes = fmt.bytes;
 
 /** re-render every `ms` while mounted; nothing ticks when the view that needs it is gone */
 export function useNow(ms: number) {
@@ -33,7 +30,7 @@ export function useNow(ms: number) {
 
 function Clock() {
   const now = useNow(10_000);
-  return <span className="w-full text-center font-display text-[12.5px] font-semibold tabular-nums">{clockFmt.format(now)}</span>;
+  return <span className="w-full text-center font-display text-[12.5px] font-semibold tabular-nums">{fmt.clock(now)}</span>;
 }
 
 function FocusLive() {
@@ -47,7 +44,7 @@ function FocusLive() {
     <>
       <span className="flex items-center gap-1.5">
         <Icon className={`size-4 ${rest ? 'text-gold' : 'text-accent'}`} strokeWidth={2.2} />
-        <span className="text-[11px] text-ink-2">{paused ? 'متوقف' : rest ? 'راحة' : 'تركيز'}</span>
+        <span className="text-[11px] text-ink-2">{paused ? T('متوقف', 'Paused') : rest ? T('راحة', 'Break') : T('تركيز', 'Focus')}</span>
       </span>
       <span className={`font-display text-[13px] font-semibold tabular-nums ${paused ? 'text-ink-2' : ''}`}>{mmss(left)}</span>
     </>
@@ -92,9 +89,9 @@ function DownloadLive() {
     <>
       <span className="flex items-center gap-1">
         <Download className="yobi-pulse size-4 text-accent" strokeWidth={2.2} />
-        {dl.length > 1 && <span className="text-[11px] tabular-nums text-ink-2">{nf.format(dl.length)}</span>}
+        {dl.length > 1 && <span className="text-[11px] tabular-nums text-ink-2">{fmt.num(dl.length)}</span>}
       </span>
-      <span className="text-[12px] tabular-nums text-ink-2">{fmtBytes(dl[0]?.speed ?? 0)}/ث</span>
+      <span className="text-[12px] tabular-nums text-ink-2">{fmt.speed(dl[0]?.speed ?? 0)}</span>
     </>
   );
 }
@@ -102,7 +99,8 @@ function DownloadLive() {
 function Dots() {
   const { mic, cam } = useIsland(s => s.privacy);
   if (!mic.length && !cam.length) return null;
-  const who = [mic.length ? `المايك: ${mic.join('، ')}` : '', cam.length ? `الكاميرا: ${cam.join('، ')}` : ''].filter(Boolean).join('\n');
+  const sep = T('، ', ', ');
+  const who = [mic.length ? `${T('المايك', 'Microphone')}: ${mic.join(sep)}` : '', cam.length ? `${T('الكاميرا', 'Camera')}: ${cam.join(sep)}` : ''].filter(Boolean).join('\n');
   return (
     <span className="absolute inset-y-0 end-2.5 flex items-center gap-1" title={who} role="img" aria-label={who}>
       {mic.length > 0 && <i className="size-1.5 rounded-pill bg-gold" />}
@@ -122,8 +120,8 @@ export function Celebrate() {
     <AnimatePresence>
       {run > 0 && (
         <motion.span key={run} className="pointer-events-none absolute bottom-0 h-[2px] w-1/3 rounded-pill"
-          style={{ insetInlineStart: 0, background: 'linear-gradient(to left, transparent, var(--color-gold), transparent)', boxShadow: '0 0 10px var(--color-gold)' }}
-          initial={{ x: '50%', opacity: 0 }} animate={{ x: '-250%', opacity: [0, 1, 1, 0] }}
+          style={{ insetInlineStart: 0, background: 'linear-gradient(to right, transparent, var(--color-gold), transparent)', boxShadow: '0 0 10px var(--color-gold)' }}
+          initial={{ x: dir() === 'rtl' ? '50%' : '-50%', opacity: 0 }} animate={{ x: dir() === 'rtl' ? '-250%' : '250%', opacity: [0, 1, 1, 0] }}
           transition={{ duration: 0.9, ease: 'easeInOut' }} onAnimationComplete={() => setRun(0)} />
       )}
     </AnimatePresence>
@@ -140,7 +138,7 @@ export function CompactIsland() {
   const view = useIsland(compactView);
   const dots = useIsland(hasDots);
   return (
-    <div className="relative h-full" dir="rtl">
+    <div className="relative h-full" dir={dir()}>
       <AnimatePresence initial={false}>
         <motion.div key={view}
           className="absolute inset-0 flex items-center justify-between ps-2.5"

@@ -25,8 +25,9 @@ SHELF_PATH = os.path.join(_HERE, "shelf.json")
 
 # ── settings: what the settings window may change, and the allowed values ──
 THEMES = ("faience", "night", "papyrus", "nile", "carnelian")
+LANGS = ("ar", "en")            # the island's language (Yobi's own replies stay as the brain writes them)
 ISLAND_DEFAULTS = {
-    "theme": "faience", "hide_fullscreen": True, "reduce_motion": False,
+    "theme": "faience", "lang": "ar", "hide_fullscreen": True, "reduce_motion": False,
     "clipboard_history": True, "screenshot_toast": True, "privacy_dots": True,
     "downloads": True, "music_tab": True, "track_peek": True,
     # batch 5
@@ -67,6 +68,14 @@ CITIES = [  # name, lat, lon, usual method
 _QUIET_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$")
 
 
+_ui = {"lang": "ar"}
+
+
+def tr(ar, en):
+    """A word the island shows, in its language (Settings → Look → Language)."""
+    return en if _ui["lang"] == "en" else ar
+
+
 def clean_settings(section, patch):
     """Keep only known keys with valid values (numbers clamped to their range)."""
     out = {}
@@ -74,6 +83,9 @@ def clean_settings(section, patch):
         if section == "island":
             if k == "theme":
                 if v in THEMES:
+                    out[k] = v
+            elif k == "lang":
+                if v in LANGS:
                     out[k] = v
             elif k in ISLAND_RANGES and isinstance(v, (int, float)) and not isinstance(v, bool):
                 lo, hi = ISLAND_RANGES[k]
@@ -200,7 +212,7 @@ PRIVACY_BASE = r"Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManag
 PRIVACY_NAMES = {
     "chrome": "Chrome", "msedge": "Edge", "firefox": "Firefox", "brave": "Brave", "opera": "Opera",
     "discord": "Discord", "teams": "Teams", "ms-teams": "Teams", "zoom": "Zoom", "slack": "Slack",
-    "obs64": "OBS", "telegram": "Telegram", "whatsapp": "WhatsApp", "windowscamera": "الكاميرا",
+    "obs64": "OBS", "telegram": "Telegram", "whatsapp": "WhatsApp", "windowscamera": ("الكاميرا", "Camera"),
     "skype": "Skype", "steam": "Steam", "riotclientservices": "Riot",
 }
 
@@ -209,7 +221,8 @@ def privacy_label(key):
     """Registry key -> a short app name."""
     k = key.replace("#", "\\")
     stem = os.path.splitext(os.path.basename(k))[0] if "\\" in k else k.split("_")[0].split(".")[-1]
-    return PRIVACY_NAMES.get(stem.lower(), stem[:20] or "تطبيق")
+    name = PRIVACY_NAMES.get(stem.lower(), stem[:20] or ("تطبيق", "An app"))
+    return tr(*name) if isinstance(name, tuple) else name   # (Arabic, English) where it differs
 
 
 class IslandTools:
@@ -223,6 +236,7 @@ class IslandTools:
         self._panel = threading.Event()
         cfg = read_config()
         self.cfg = dict(ISLAND_DEFAULTS, **clean_settings("island", cfg.get("island")))
+        _ui["lang"] = self.cfg["lang"]
         # downloads
         self._dl = {}               # partial path -> info
         self._dl_done = {}          # id -> final path
@@ -321,6 +335,7 @@ class IslandTools:
             if "autostart" in good:
                 good["autostart"] = set_autostart(good["autostart"])
             self.cfg.update(good)
+            _ui["lang"] = self.cfg["lang"]
             self._send_island_settings()
             if not self.cfg["clipboard_history"]:
                 self._clips = []
@@ -340,7 +355,7 @@ class IslandTools:
         import random
         import time as _t
         if what == "reply":
-            self._send({"t": "say", "text": "تمام، فتحت ديسكورد ✅", "state": "success", "chime": True})
+            self._send({"t": "say", "text": tr("تمام، فتحت ديسكورد ✅", "Done, Discord is open ✅"), "state": "success", "chime": True})
         elif what == "adhan":
             times = getattr(self._daily, "_times", {}) or {}
             now = _t.time() * 1000
@@ -412,7 +427,7 @@ class IslandTools:
                 self._send({"t": "notice", "kind": "download_done", "id": d["id"],
                             "name": os.path.basename(final), "size": os.path.getsize(final)})
                 if self.extras is not None:
-                    self.extras.note(f"اتحمّل {os.path.basename(final)}")
+                    self.extras.note(tr(f"اتحمّل {os.path.basename(final)}", f"Downloaded {os.path.basename(final)}"))
         items = [{"id": d["id"], "name": PARTIAL_RE.sub("", os.path.basename(p)),
                   "bytes": d["size"], "speed": round(d["speed"])}
                  for p, d in self._dl.items() if now - d["first"] >= SHOW_AFTER_S]
@@ -512,7 +527,7 @@ class IslandTools:
         path = os.path.join(folder, dt.datetime.now().strftime("لقطة-%Y%m%d-%H%M%S.png"))
         img.save(path, "PNG")
         self.shelf_add([path])
-        self._send({"t": "say", "text": "حفظت اللقطة على الرف 📌", "state": "success", "chime": False})
+        self._send({"t": "say", "text": tr("حفظت اللقطة على الرف 📌", "Saved the screenshot to the shelf 📌"), "state": "success", "chime": False})
 
     def _send_clips(self):
         self._send({"t": "clips", "enabled": self.cfg["clipboard_history"],

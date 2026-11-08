@@ -18,6 +18,7 @@ import time
 import urllib.request
 import webbrowser
 from ctypes import wintypes
+from island_tools import tr
 
 try:
     import psutil
@@ -36,11 +37,15 @@ NCSI = "http://www.msftconnecttest.com/connecttest.txt"
 AWAY_S = 5 * 60
 LONG_AWAY_S = 30 * 60
 WORK_S = 50 * 60
-CARE = [
-    ("قوم اتحرك شوية", "بقالك ٥٠ دقيقة قدام الشاشة. دقيقتين حركة بيصحّوا الجسم والدماغ."),
-    ("ريّح عينك", "بص على حاجة بعيدة ٢٠ ثانية، قاعدة ٢٠-٢٠-٢٠."),
-    ("خد نفس عميق", "شهيق ٤ ثواني، اكتم ٤، زفير ٤. كرّرها ٣ مرات."),
-    ("فرد ضهرك", "ارفع كتافك وارجعهم لورا، وفرد رقبتك يمين وشمال."),
+CARE = [   # (title, text) in Arabic, then in English
+    ("قوم اتحرك شوية", "بقالك ٥٠ دقيقة قدام الشاشة. دقيقتين حركة بيصحّوا الجسم والدماغ.",
+     "Get up and move", "You've been at the screen for 50 minutes. Two minutes of moving wakes up body and mind."),
+    ("ريّح عينك", "بص على حاجة بعيدة ٢٠ ثانية، قاعدة ٢٠-٢٠-٢٠.",
+     "Rest your eyes", "Look at something far away for 20 seconds: the 20-20-20 rule."),
+    ("خد نفس عميق", "شهيق ٤ ثواني، اكتم ٤، زفير ٤. كرّرها ٣ مرات.",
+     "Take a deep breath", "Breathe in for 4 seconds, hold 4, out 4. Repeat 3 times."),
+    ("فرد ضهرك", "ارفع كتافك وارجعهم لورا، وفرد رقبتك يمين وشمال.",
+     "Stretch your back", "Lift your shoulders and roll them back, then stretch your neck left and right."),
 ]
 
 
@@ -328,7 +333,7 @@ class IslandExtras:
         try:
             agent.launch(e)
         except Exception as err:
-            self._send({"t": "say", "text": f"معرفتش أفتح {e.display}: {err}", "state": "error", "chime": True})
+            self._send({"t": "say", "text": tr(f"معرفتش أفتح {e.display}: {err}", f"Couldn't open {e.display}: {err}"), "state": "error", "chime": True})
 
     @staticmethod
     def _focus_running(exe_name):
@@ -402,12 +407,12 @@ class IslandExtras:
             return
         if not online:
             self._offline_since = time.time()
-            self.note("النت فصل")
+            self.note(tr("النت فصل", "The internet dropped"))
         gone = int(time.time() - self._offline_since) if online and self._offline_since else 0
         if self.cfg.get("net_toasts", True):
             self._send({"t": "hud", "kind": "net", "online": online, "gone_s": gone})
         if online:
-            self.note("النت رجع")
+            self.note(tr("النت رجع", "The internet came back"))
             self.refresh_weather()
 
     # ── moments: morning brief, welcome back, take a break ────
@@ -457,18 +462,20 @@ class IslandExtras:
         focusing = self._daily is not None and self._daily.phase == "focus"
         if self.cfg.get("wellbeing", True) and now - self._active_since >= WORK_S and not focusing and self._free():
             self._active_since = now
-            title, text = CARE[self._care_i % len(CARE)]
+            ar_title, ar_text, en_title, en_text = CARE[self._care_i % len(CARE)]
+            title, text = tr(ar_title, en_title), tr(ar_text, en_text)
             self._care_i += 1
             self._send({"t": "notice", "kind": "care", "title": title, "text": text})
 
     def _prayers_between(self, a, b):
-        names = {"fajr": "الفجر", "dhuhr": "الظهر", "asr": "العصر", "maghrib": "المغرب", "isha": "العشاء"}
+        names = {"fajr": ("الفجر", "Fajr"), "dhuhr": ("الظهر", "Dhuhr"), "asr": ("العصر", "Asr"),
+                 "maghrib": ("المغرب", "Maghrib"), "isha": ("العشاء", "Isha")}
         times = getattr(self._daily, "_times", {}) or {}
-        return [f"أذان {names[k]}" for k in names if k in times and a * 1000 <= times[k] <= b * 1000]
+        return [tr(f"أذان {names[k][0]}", f"{names[k][1]} adhan") for k in names if k in times and a * 1000 <= times[k] <= b * 1000]
 
     def _brief(self):
         h = dt.datetime.now().hour
-        greet = "صباح الفل ☀️" if h < 12 else "مساء الخير 🌙" if h >= 17 else "أهلا بيك 👋"
+        greet = tr("صباح الفل ☀️", "Good morning ☀️") if h < 12 else tr("مساء الخير 🌙", "Good evening 🌙") if h >= 17 else tr("أهلا بيك 👋", "Hello 👋")
         nxt = None
         times = getattr(self._daily, "_times", {}) or {}
         now_ms = time.time() * 1000

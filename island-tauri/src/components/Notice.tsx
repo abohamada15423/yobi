@@ -5,6 +5,7 @@ import { useLayoutEffect, useRef } from 'react';
 import { useIsland } from '../store';
 import { noticeAction } from '../notices';
 import { spring, stagger } from '../motion';
+import { dir, towardEnd } from '../i18n';
 
 const mix = (c: string, p: number) => `color-mix(in srgb, ${c} ${p}%, transparent)`;
 
@@ -70,8 +71,8 @@ export function Notice({ onSize }: { onSize: (w: number, h: number) => void }) {
   if (!n) return null;
   const l = n.look;
   return (
-    <div ref={box} dir="rtl" role="status" aria-live="polite" className="absolute top-0 left-1/2 w-[380px] -translate-x-1/2 overflow-hidden">
-      <span className="pointer-events-none absolute inset-0" style={{ background: `linear-gradient(to left, ${mix(l.color, 26)}, transparent 70%)` }} />
+    <div ref={box} dir={dir()} role="status" aria-live="polite" className="absolute top-0 left-1/2 w-[380px] -translate-x-1/2 overflow-hidden">
+      <span className="pointer-events-none absolute inset-0" style={{ background: `linear-gradient(to ${towardEnd()}, ${mix(l.color, 26)}, transparent 70%)` }} />
       <l.icon className="pointer-events-none absolute -bottom-6 -left-4 size-32 opacity-[.07]" style={{ color: l.color }} aria-hidden="true" />
       {/* a notice replacing another drops in */}
       <AnimatePresence mode="popLayout" initial={false}>

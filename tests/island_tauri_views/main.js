@@ -136,7 +136,7 @@ app.whenReady().then(async () => {
     const send = m => run(`window.__yobi.deliver(${JSON.stringify(m)})`);
     const st = () => run(`(() => { const s = window.__island.getState(); return { state: s.state, words: s.words, typing: s.typing, held: s.replyHeld, history: s.history.length, q: !!s.question, sent: window.__yobi.sent }; })()`);
     await sleep(300);
-    try { await body({ run, send, st }); } catch (e) { failures.push(`${name}: ${e.message}`); }
+    try { await body({ run, send, st, w }); } catch (e) { failures.push(`${name}: ${e.message}`); }
     w.destroy();
   };
   const expect = (name, ok, what) => { if (!ok) throw new Error(what); };
@@ -760,6 +760,46 @@ app.whenReady().then(async () => {
     }),
   ]);
   console.log('settings rules checked');
+
+  // English (Settings → Look → Language): every word, the direction, and the numbers follow it
+  const AR = /[؀-ۿ]/;
+  await Promise.all([
+    rule('english: the panel', async ({ run, w }) => {
+      await run(deliver({ t: 'island_settings', values: { lang: 'en' } })); await sleep(300);
+      await run(hover); await sleep(700);
+      const s = await run(`({ dir: document.documentElement.dir, text: document.querySelector('#root').innerText })`);
+      expect('', s.dir === 'ltr', `direction ${s.dir}`);
+      expect('', /Talk/.test(s.text) && /Write/.test(s.text), `English dock: ${JSON.stringify(s.text)}`);
+      expect('', !AR.test(s.text), `Arabic left in the panel: ${JSON.stringify(s.text.match(/[^\n]*[؀-ۿ][^\n]*/g))}`);
+      fs.writeFileSync(path.join(OUT, 'en_panel.png'), (await w.webContents.capturePage()).toPNG());
+      await run(dock('More')); await sleep(200);
+      const menu = await run(`document.querySelector('#root').innerText`);
+      expect('', /Settings/.test(menu) && /Quit Yobi/.test(menu) && !AR.test(menu), `English menu: ${JSON.stringify(menu)}`);
+    }),
+    rule('english: a notice and the compact island', async ({ run }) => {
+      await run(deliver({ t: 'island_settings', values: { lang: 'en' } }));
+      await run(deliver({ t: 'focus', phase: 'focus', round: 1, total: 4, ends_at: Date.now() + 1084000 })); await sleep(500);
+      const c = await run(`document.querySelector('#root > div').innerText`);
+      expect('', /\d/.test(c) && !AR.test(c), `compact island in English: ${JSON.stringify(c)}`);
+      await run(deliver({ t: 'notice', kind: 'focus_done', round: 1, next_min: 5 })); await sleep(500);
+      const n = await run(`document.querySelector('[role=status]')?.innerText || ''`);
+      expect('', n && !AR.test(n), `notice in English: ${JSON.stringify(n)}`);
+    }),
+    rule('english: the settings window', async () => {
+      const w = await open('settings', 900, 640);
+      const run = c => w.webContents.executeJavaScript(c);
+      await sleep(300);
+      await run(deliver({ ...SETTINGS, island: { ...SETTINGS.island, lang: 'en' } })); await sleep(600);
+      const s = await run(`({ dir: document.querySelector('#root > div').dir, text: document.querySelector('nav').innerText })`);
+      expect('', s.dir === 'ltr' && /Yobi settings/.test(s.text) && /Prayer/.test(s.text), `settings in English: ${JSON.stringify(s)}`);
+      fs.writeFileSync(path.join(OUT, 'en_settings.png'), (await w.webContents.capturePage()).toPNG());
+      await run(`[...document.querySelectorAll('[role=radio]')].find(b => b.textContent === 'عربي').click()`); await sleep(100);
+      const sent = await run(`window.__yobi.sent.filter(m => m.t === 'settings_set')`);
+      expect('', JSON.stringify(sent) === JSON.stringify([{ t: 'settings_set', section: 'island', values: { lang: 'ar' } }]), `sent ${JSON.stringify(sent)}`);
+      w.destroy();
+    }),
+  ]);
+  console.log('english rules checked');
 
   // voice commands (island_voice.py): Yobi ends its turn, then asks the island to open a page
   await Promise.all([

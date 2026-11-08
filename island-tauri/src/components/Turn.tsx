@@ -8,6 +8,7 @@ import { useIsland } from '../store';
 import { answer } from '../turn';
 import { spring, stagger } from '../motion';
 import { Bars } from './CompactIsland';
+import { T, dir, fmt } from '../i18n';
 
 /** the reply appears letter by letter; a longer version of the same reply (streaming) carries on */
 function Typed({ text }: { text: string }) {
@@ -50,7 +51,7 @@ function Dots() {
 function Ring({ v }: { v: number }) {
   const c = 2 * Math.PI * 7, known = v <= 1;
   return (
-    <svg className={`size-4 -rotate-90 ${known ? '' : 'yobi-spin'}`} viewBox="0 0 18 18" role="img" aria-label={known ? `${Math.round(v * 100)}٪` : 'شغال'}>
+    <svg className={`size-4 -rotate-90 ${known ? '' : 'yobi-spin'}`} viewBox="0 0 18 18" role="img" aria-label={known ? fmt.pct(v * 100) : T('شغال', 'Working')}>
       <circle cx="9" cy="9" r="7" fill="none" stroke="var(--color-line)" strokeWidth="2.2" />
       <circle cx="9" cy="9" r="7" fill="none" stroke="var(--color-accent)" strokeWidth="2.2" strokeLinecap="round"
         strokeDasharray={`${c * (known ? v : 0.3)} ${c}`} style={{ transition: 'stroke-dasharray .3s ease-out' }} />
@@ -121,7 +122,7 @@ export function Turn({ onSize }: { onSize: (w: number, h: number) => void }) {
   }, [onSize]);
 
   return (
-    <div ref={box} dir="rtl" className={`absolute top-0 left-1/2 flex w-max max-w-[460px] -translate-x-1/2 flex-col gap-2.5 px-4 py-2 ${asking ? 'min-w-[340px] pb-3' : 'min-w-[280px]'}`}>
+    <div ref={box} dir={dir()} className={`absolute top-0 left-1/2 flex w-max max-w-[460px] -translate-x-1/2 flex-col gap-2.5 px-4 py-2 ${asking ? 'min-w-[340px] pb-3' : 'min-w-[280px]'}`}>
       <motion.div animate={shake} className="flex min-h-7 items-center gap-3">
         <motion.div key={seq} className="min-w-0 flex-1" initial={{ opacity: 0, filter: 'blur(3px)' }} animate={{ opacity: 1, filter: 'blur(0px)' }} transition={spring.content}>
           {words ? <Typed text={words} /> : <p dir="auto" className="m-0 truncate text-[13px] text-ink-2">{status}</p>}

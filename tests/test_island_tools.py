@@ -99,6 +99,16 @@ class TestShelfAndPrivacy(unittest.TestCase):
         self.assertEqual(it.privacy_label(r"C:#Users#me#AppData#Local#Discord#app-1.0#Discord.exe"), "Discord")
         self.assertEqual(it.privacy_label("Microsoft.WindowsCamera_8wekyb3d8bbwe"), "الكاميرا")
 
+    def test_english(self):
+        self.assertEqual(it.clean_settings("island", {"lang": "en"}), {"lang": "en"})
+        self.assertEqual(it.clean_settings("island", {"lang": "fr"}), {})
+        try:
+            it._ui["lang"] = "en"
+            self.assertEqual(it.privacy_label("Microsoft.WindowsCamera_8wekyb3d8bbwe"), "Camera")
+            self.assertEqual(it.tr("النت رجع", "The internet came back"), "The internet came back")
+        finally:
+            it._ui["lang"] = "ar"
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -15,6 +15,7 @@ import { Notice } from './components/Notice';
 import { showNotice } from './notices';
 import { IN_SETTINGS, pointerEnter, pointerLeave, voiceOpen } from './panel';
 import { SettingsWindow } from './components/Settings';
+import { dir } from './i18n';
 import { YobiFace, type Look } from './components/YobiFace';
 import { CompactOptions } from './design/CompactOptions';
 import { TurnOptions } from './design/TurnOptions';
@@ -35,7 +36,9 @@ function useBridge() {
   useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
   const still = useIsland(stillPref);
   useEffect(() => { document.documentElement.classList.toggle('still', still); }, [still]);
-  return still;
+  const l = useIsland(s => (s.prefs.lang === 'en' ? 'en' : 'ar'));
+  useEffect(() => { document.documentElement.lang = l; document.documentElement.dir = dir(); }, [l]);
+  return { still, lang: l };
 }
 
 export default function App() {
@@ -43,11 +46,11 @@ export default function App() {
 }
 
 function IslandApp() {
-  const still = useBridge();
+  const { still, lang } = useBridge();
   const q = new URLSearchParams(location.search);
   return (
     <MotionConfig reducedMotion={still ? 'always' : 'user'}>
-      {q.has('gallery') ? <Gallery /> : q.has('options') ? <CompactOptions /> : q.has('turn') ? <TurnOptions /> : q.has('panel') ? <PanelOptions /> : q.has('music') ? <MusicOptions /> : q.has('music2') ? <MusicOptions2 /> : q.has('hud') ? <HudOptions /> : q.has('notice') ? <NoticeOptions /> : q.has('day') ? <DayOptions /> : q.has('work') ? <WorkOptions /> : q.has('settings_options') ? <SettingsOptions /> : <Island />}
+      {q.has('gallery') ? <Gallery /> : q.has('options') ? <CompactOptions /> : q.has('turn') ? <TurnOptions /> : q.has('panel') ? <PanelOptions /> : q.has('music') ? <MusicOptions /> : q.has('music2') ? <MusicOptions2 /> : q.has('hud') ? <HudOptions /> : q.has('notice') ? <NoticeOptions /> : q.has('day') ? <DayOptions /> : q.has('work') ? <WorkOptions /> : q.has('settings_options') ? <SettingsOptions /> : <Island key={lang} />}   {/* a new language redraws everything */}
     </MotionConfig>
   );
 }

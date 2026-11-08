@@ -3,7 +3,7 @@
 // and the downloads row on the home page.
 import { motion } from 'motion/react';
 import {
-  AppWindow, ArrowRight, Check, Copy, Download, File, FileArchive, FileText, Film, Folder, FolderOpen, ImageIcon, Music2,
+  AppWindow, ArrowLeft, ArrowRight, Check, Copy, Download, File, FileArchive, FileText, Film, Folder, FolderOpen, ImageIcon, Music2,
   Pencil, Plus, Search, Trash2, X, type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -14,9 +14,10 @@ import { spring } from '../motion';
 import { useSongColor } from '../songColor';
 import type { PinnedApp, ShelfItem } from '../types';
 import { fmtBytes } from './CompactIsland';
+import { T, fmt, lang } from '../i18n';
 
-const nf = new Intl.NumberFormat('ar-EG');
-const clockFmt = new Intl.DateTimeFormat('ar-EG', { hour: 'numeric', minute: '2-digit' });
+const nf = { format: fmt.num };
+const clockFmt = { format: fmt.clock };
 const tint = (c: string) => ({ background: `linear-gradient(160deg, color-mix(in srgb, ${c} 16%, transparent), rgba(255,255,255,.03) 70%)`, boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${c} 22%, transparent)` });
 const item = { hide: { opacity: 0, y: -6, scale: 0.97 }, show: { opacity: 1, y: 0, scale: 1, transition: spring.content } };
 const list = { show: { transition: { staggerChildren: 0.025 } } };
@@ -42,8 +43,8 @@ function Head({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="flex items-center justify-between">
       <span className="flex items-center gap-2">
-        <button type="button" onClick={() => useIsland.getState().setPanel({ page: 'home' })} aria-label="رجوع" title="رجوع"
-                className="grid size-8 place-items-center rounded-full bg-white/[.07] hover:bg-white/[.12]"><ArrowRight className="size-4" /></button>
+        <button type="button" onClick={() => useIsland.getState().setPanel({ page: 'home' })} aria-label={T('رجوع', 'Back')} title={T('رجوع', 'Back')}
+                className="grid size-8 place-items-center rounded-full bg-white/[.07] hover:bg-white/[.12]">{lang() === 'en' ? <ArrowLeft className="size-4" /> : <ArrowRight className="size-4" />}</button>
         <b className="font-display text-[15px]">{title}</b>
       </span>
       {children}
@@ -70,12 +71,12 @@ function AppCard({ app, edit }: { app: PinnedApp; edit: boolean }) {
         <span className="relative">
           {icon ? <img src={icon} alt="" className="size-10 object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,.35)]" />
             : <span className="grid size-10 place-items-center rounded-[12px] text-[16px] font-bold text-white" style={{ background: color }}>{app.name.trim().charAt(0).toUpperCase()}</span>}
-          {app.running && <i className="absolute -bottom-1.5 left-1/2 size-1.5 -translate-x-1/2 rounded-full bg-accent shadow-[0_0_6px_var(--color-accent)]" title="مفتوح" />}
+          {app.running && <i className="absolute -bottom-1.5 left-1/2 size-1.5 -translate-x-1/2 rounded-full bg-accent shadow-[0_0_6px_var(--color-accent)]" title={T('مفتوح', 'Open')} />}
         </span>
         <span dir="auto" className="w-full truncate text-center text-[11.5px]">{app.name}</span>
       </button>
       {edit && (
-        <button type="button" onClick={() => bridge.send({ t: 'app_unpin', name: app.name })} aria-label={`شيل ${app.name}`}
+        <button type="button" onClick={() => bridge.send({ t: 'app_unpin', name: app.name })} aria-label={T(`شيل ${app.name}`, `Remove ${app.name}`)}
                 className="absolute -top-1.5 -left-1.5 grid size-6 place-items-center rounded-full bg-alert text-white shadow"><X className="size-3.5" /></button>
       )}
     </motion.div>
@@ -90,16 +91,16 @@ export function AppsPage() {
   const choices = (apps.catalog || []).filter(n => !have.has(n.toLowerCase()) && (!q.trim() || n.toLowerCase().includes(q.trim().toLowerCase()))).slice(0, 40);
   return (
     <div className="flex flex-col gap-3">
-      <Head title="التطبيقات"><Action icon={edit ? Check : Pencil} label={edit ? 'خلصت' : 'تعديل'} pressed={edit} onClick={() => { setEdit(!edit); setPicking(false); }} /></Head>
+      <Head title={T('التطبيقات', 'Apps')}><Action icon={edit ? Check : Pencil} label={edit ? T('خلصت', 'Done') : T('تعديل', 'Edit')} pressed={edit} onClick={() => { setEdit(!edit); setPicking(false); }} /></Head>
       {picking ? (
         <>
           <label className="flex items-center gap-2 rounded-full bg-white/[.06] px-3.5 py-2 text-[12.5px] focus-within:ring-1 focus-within:ring-accent/60">
             <Search className="size-4 text-ink-3" aria-hidden="true" />
             <input autoFocus dir="auto" value={q} onChange={e => setQ(e.target.value)} onPointerDown={borrowKeyboard} onFocus={borrowKeyboard}
-                   placeholder="دوّر على برنامج…" aria-label="دوّر على برنامج" className="min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-ink-3" />
+                   placeholder={T('دوّر على برنامج…', 'Find an app…')} aria-label={T('دوّر على برنامج', 'Find an app')} className="min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-ink-3" />
           </label>
           <div className="grid max-h-[300px] gap-1 overflow-y-auto">
-            {apps.catalog === null ? <Empty>بجيب البرامج…</Empty> : choices.map(n => (
+            {apps.catalog === null ? <Empty>{T('بجيب البرامج…', 'Loading apps…')}</Empty> : choices.map(n => (
               <button key={n} type="button" onClick={() => bridge.send({ t: 'app_pin', name: n })}
                       className="flex items-center justify-between rounded-[12px] bg-white/[.03] px-3 py-2 text-start text-[13px] hover:bg-white/[.07]">
                 <bdi>{n}</bdi><Plus className="size-4 text-accent" aria-hidden="true" />
@@ -107,13 +108,13 @@ export function AppsPage() {
             ))}
           </div>
         </>
-      ) : !apps.pinned.length && !edit ? <Empty>مفيش برامج متثبتة. دوس "تعديل" وضيف اللي بتفتحه كتير.</Empty> : (
+      ) : !apps.pinned.length && !edit ? <Empty>{T('مفيش برامج متثبتة. دوس "تعديل" وضيف اللي بتفتحه كتير.', 'No pinned apps. Press "Edit" and add the ones you open often.')}</Empty> : (
         <motion.div className="grid grid-cols-3 gap-2" variants={list} initial="hide" animate="show">
           {apps.pinned.map(a => <AppCard key={a.name} app={a} edit={edit} />)}
           {edit && apps.pinned.length < 12 && (
             <motion.button variants={item} type="button" onClick={() => { setPicking(true); bridge.send({ t: 'apps_get' }); }}
                            className="flex flex-col items-center justify-center gap-2 rounded-[18px] border border-dashed border-white/20 px-2 py-3 text-ink-2 hover:bg-white/[.04]">
-              <Plus className="size-6" /><span className="text-[11.5px]">ضيف</span>
+              <Plus className="size-6" /><span className="text-[11.5px]">{T('ضيف', 'Add')}</span>
             </motion.button>
           )}
         </motion.div>
@@ -150,9 +151,9 @@ function ShelfCard({ it }: { it: ShelfItem }) {
         <span className="min-w-0 flex-1 truncate text-[12px]"><bdi>{it.name}</bdi></span>
       </button>
       <span className="absolute -top-1.5 -left-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-        <button type="button" onClick={() => bridge.send({ t: 'shelf_folder', i: it.i })} aria-label={`وريني مكان ${it.name}`} title="وريني مكانه"
+        <button type="button" onClick={() => bridge.send({ t: 'shelf_folder', i: it.i })} aria-label={T(`وريني مكان ${it.name}`, `Show ${it.name} in its folder`)} title={T('وريني مكانه', 'Show in folder')}
                 className="grid size-6 place-items-center rounded-full bg-fill-2 shadow"><FolderOpen className="size-3.5" /></button>
-        <button type="button" onClick={() => bridge.send({ t: 'shelf_remove', i: it.i })} aria-label={`شيل ${it.name} من الرف`} title="شيله من الرف"
+        <button type="button" onClick={() => bridge.send({ t: 'shelf_remove', i: it.i })} aria-label={T(`شيل ${it.name} من الرف`, `Remove ${it.name} from the shelf`)} title={T('شيله من الرف', 'Remove from the shelf')}
                 className="grid size-6 place-items-center rounded-full bg-alert text-white shadow"><X className="size-3.5" /></button>
       </span>
     </motion.div>
@@ -162,8 +163,8 @@ export function ShelfPage() {
   const shelf = useIsland(s => s.shelf);
   return (
     <div className="flex flex-col gap-3">
-      <Head title="الرف">{shelf.length > 0 && <Action icon={Trash2} label="فضّي الرف" onClick={() => bridge.send({ t: 'shelf_clear' })} />}</Head>
-      {!shelf.length ? <Empty>اسحب ملفات على الجزيرة وهتتحط هنا، ومن هنا تسحبها لأي برنامج.</Empty> : (
+      <Head title={T('الرف', 'Shelf')}>{shelf.length > 0 && <Action icon={Trash2} label={T('فضّي الرف', 'Empty the shelf')} onClick={() => bridge.send({ t: 'shelf_clear' })} />}</Head>
+      {!shelf.length ? <Empty>{T('اسحب ملفات على الجزيرة وهتتحط هنا، ومن هنا تسحبها لأي برنامج.', 'Drop files on the island to keep them here, then drag them into any app.')}</Empty> : (
         <motion.div className="grid max-h-[360px] grid-cols-2 gap-2 overflow-y-auto p-1.5" variants={list} initial="hide" animate="show">
           {shelf.map(it => <ShelfCard key={it.i} it={it} />)}
         </motion.div>
@@ -178,19 +179,19 @@ export function ClipsPage() {
   const [copied, setCopied] = useState(-1);
   return (
     <div className="flex flex-col gap-3">
-      <Head title="الحافظة">{clips.items.length > 0 && <Action icon={Trash2} label="امسح" onClick={() => bridge.send({ t: 'clip_clear' })} />}</Head>
+      <Head title={T('الحافظة', 'Clipboard')}>{clips.items.length > 0 && <Action icon={Trash2} label={T('امسح', 'Clear')} onClick={() => bridge.send({ t: 'clip_clear' })} />}</Head>
       {!clips.enabled || !clips.items.length
-        ? <Empty>{clips.enabled ? 'أي نص تنسخه هيظهر هنا، ودوسة عليه تنسخه تاني' : 'سجل الحافظة مقفول من الإعدادات'}</Empty>
+        ? <Empty>{clips.enabled ? T('أي نص تنسخه هيظهر هنا، ودوسة عليه تنسخه تاني', 'Text you copy shows up here; click it to copy it again') : T('سجل الحافظة مقفول من الإعدادات', 'Clipboard history is off in Settings')}</Empty>
         : (
           <motion.div className="flex max-h-[380px] flex-col gap-2 overflow-y-auto" variants={list} initial="hide" animate="show">
             {clips.items.map((text, i) => (
-              <motion.button key={`${i}-${text.slice(0, 20)}`} variants={item} type="button" title="دوس عشان تنسخه"
+              <motion.button key={`${i}-${text.slice(0, 20)}`} variants={item} type="button" title={T('دوس عشان تنسخه', 'Click to copy')}
                              onClick={() => { bridge.send({ t: 'clip_copy', i }); setCopied(i); }}
                              className="flex items-center gap-3 rounded-[18px] px-3.5 py-2.5 text-start text-[12.5px]"
                              style={copied === i ? tint('var(--color-accent)') : { background: 'rgba(255,255,255,.04)' }}>
                 <span dir="auto" className="line-clamp-2 min-w-0 flex-1 break-words">{text.replace(/\s+/g, ' ').trim()}</span>
                 <span className="flex shrink-0 items-center gap-1 text-[10.5px]" style={{ color: copied === i ? 'var(--color-accent)' : 'var(--color-ink-3)' }}>
-                  {copied === i ? <><Check className="size-3.5" />اتنسخ</> : <Copy className="size-3.5" />}
+                  {copied === i ? <><Check className="size-3.5" />{T('اتنسخ', 'Copied')}</> : <Copy className="size-3.5" />}
                 </span>
               </motion.button>
             ))}
@@ -201,20 +202,20 @@ export function ClipsPage() {
 }
 
 /* ── history ── */
-const LABEL: Record<string, string> = { success: 'تم', error: 'مشكلة', info: 'يوبي', suggesting: 'سؤال' };
+const LABEL = (k: string) => ({ success: T('تم', 'Done'), error: T('مشكلة', 'Problem'), info: T('يوبي', 'Yobi'), suggesting: T('سؤال', 'Question') } as Record<string, string>)[k];
 const HUE: Record<string, string> = { success: 'var(--color-gold)', error: 'var(--color-alert)', info: 'var(--color-ink-2)', suggesting: '#C792EA', notice: 'var(--color-accent)' };
 export function HistoryPage() {
   const history = useIsland(s => s.history);
   return (
     <div className="flex flex-col gap-3">
-      <Head title="اللي فات">{history.length > 0 && <Action icon={Trash2} label="امسح" onClick={() => useIsland.setState({ history: [] })} />}</Head>
-      {!history.length ? <Empty>اللي يوبي قاله وورّاهولك النهارده هيتجمع هنا.</Empty> : (
+      <Head title={T('اللي فات', 'History')}>{history.length > 0 && <Action icon={Trash2} label={T('امسح', 'Clear')} onClick={() => useIsland.setState({ history: [] })} />}</Head>
+      {!history.length ? <Empty>{T('اللي يوبي قاله وورّاهولك النهارده هيتجمع هنا.', 'What Yobi said and showed you today gathers here.')}</Empty> : (
         <motion.div className="flex max-h-[380px] flex-col gap-2 overflow-y-auto" variants={list} initial="hide" animate="show">
           {history.map((h, i) => {
             const c = HUE[h.kind] || HUE.notice;
             return (
               <motion.div key={`${h.at}-${i}`} variants={item} className="rounded-[18px] px-3.5 py-2.5" style={tint(c)}>
-                <span className="flex justify-between text-[10.5px]"><b style={{ color: c }}><bdi>{h.label || LABEL[h.kind] || ''}</bdi></b><span className="text-ink-3">{clockFmt.format(h.at)}</span></span>
+                <span className="flex justify-between text-[10.5px]"><b style={{ color: c }}><bdi>{h.label || LABEL(h.kind) || ''}</bdi></b><span className="text-ink-3">{clockFmt.format(h.at)}</span></span>
                 <p dir="auto" className="m-0 text-[12.5px]">{h.text}</p>
               </motion.div>
             );
@@ -234,8 +235,8 @@ export function DownloadsRow() {
     <motion.div variants={item} className="col-span-3 flex items-center gap-3 rounded-[18px] px-3 py-2.5" style={tint('var(--color-accent)')}>
       <Download className="yobi-pulse size-4 shrink-0 text-accent" aria-hidden="true" />
       <span className="min-w-0 flex-1">
-        <span dir="auto" className="block truncate text-[12.5px]">{dl.length > 1 ? `${nf.format(dl.length)} تحميلات — ` : ''}{d.name}</span>
-        <span className="text-[11px] text-ink-2">{fmtBytes(d.bytes)} · {fmtBytes(d.speed)}/ث</span>
+        <span dir="auto" className="block truncate text-[12.5px]">{dl.length > 1 ? `${nf.format(dl.length)} ${T('تحميلات', 'downloads')} — ` : ''}{d.name}</span>
+        <span className="text-[11px] text-ink-2">{fmtBytes(d.bytes)} · {fmt.speed(d.speed)}</span>
       </span>
     </motion.div>
   );

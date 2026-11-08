@@ -9,6 +9,7 @@ import { mediaPos, useIsland } from '../store';
 import { spring } from '../motion';
 import { songVars, useSongColor } from '../songColor';
 import { Bars, mmss, useNow } from './CompactIsland';
+import { T, dir } from '../i18n';
 
 const get = () => useIsland.getState();
 const glow = (pct: number) => `color-mix(in srgb, var(--song) ${pct}%, transparent)`;
@@ -43,7 +44,7 @@ function Words() {
   const m = useIsland(s => s.media);
   return (
     <div className="min-w-0 flex-1">
-      <p dir="auto" className="m-0 truncate font-display text-[15px] font-bold">{m.title || 'من غير اسم'}</p>
+      <p dir="auto" className="m-0 truncate font-display text-[15px] font-bold">{m.title || T('من غير اسم', 'Untitled')}</p>
       <p dir="auto" className="m-0 truncate text-[12px]" style={{ color: 'color-mix(in srgb, var(--song) 75%, white)' }}>
         {[m.artist, m.app].filter(Boolean).join(' – ')}
       </p>
@@ -90,7 +91,7 @@ function Timeline() {
   return (
     <div dir="ltr" className="flex items-center gap-2 text-[10.5px] tabular-nums text-ink-2">
       <span>{mmss(pos)}</span>
-      <div role="slider" tabIndex={m.seek ? 0 : -1} aria-label="مكان الأغنية" aria-valuemin={0} aria-valuemax={100}
+      <div role="slider" tabIndex={m.seek ? 0 : -1} aria-label={T('مكان الأغنية', 'Position in the song')} aria-valuemin={0} aria-valuemax={100}
            aria-valuenow={Math.round(v * 100)} aria-disabled={!m.seek} onClick={click} onKeyDown={keys}
            className={`relative h-4 flex-1 ${m.seek ? 'cursor-pointer' : ''}`}>
         <span className="absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-pill bg-white/12">
@@ -110,14 +111,14 @@ function Controls() {
   const side = 'grid size-10 place-items-center rounded-pill hover:bg-white/10';
   return (
     <span dir="ltr" className="flex items-center justify-center gap-4">
-      <motion.button type="button" aria-label="الأغنية اللي فاتت" title="الأغنية اللي فاتت" whileTap={{ scale: 0.88 }} transition={spring.micro}
+      <motion.button type="button" aria-label={T('الأغنية اللي فاتت', 'Previous song')} title={T('الأغنية اللي فاتت', 'Previous song')} whileTap={{ scale: 0.88 }} transition={spring.micro}
                      className={side} onClick={() => mediaCmd('prev')}><SkipBack className="size-5" fill="currentColor" /></motion.button>
-      <motion.button type="button" aria-label={playing ? 'وقّف' : 'شغّل'} title={playing ? 'وقّف' : 'شغّل'} whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.9 }} transition={spring.micro}
+      <motion.button type="button" aria-label={playing ? T('وقّف', 'Pause') : T('شغّل', 'Play')} title={playing ? T('وقّف', 'Pause') : T('شغّل', 'Play')} whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.9 }} transition={spring.micro}
                      className="grid size-12 place-items-center rounded-pill text-island"
                      style={{ background: 'var(--song)', boxShadow: `0 6px 22px ${glow(45)}` }} onClick={() => mediaCmd('toggle')}>
         {playing ? <Pause className="size-6" fill="currentColor" /> : <Play className="size-6 translate-x-px" fill="currentColor" />}
       </motion.button>
-      <motion.button type="button" aria-label="الأغنية الجاية" title="الأغنية الجاية" whileTap={{ scale: 0.88 }} transition={spring.micro}
+      <motion.button type="button" aria-label={T('الأغنية الجاية', 'Next song')} title={T('الأغنية الجاية', 'Next song')} whileTap={{ scale: 0.88 }} transition={spring.micro}
                      className={side} onClick={() => mediaCmd('next')}><SkipForward className="size-5" fill="currentColor" /></motion.button>
     </span>
   );
@@ -151,7 +152,7 @@ export function TrackPeek() {
   const level = useIsland(s => s.musicLevel);
   const col = useSongColor(art);
   return (
-    <motion.div dir="rtl" className="absolute inset-0 flex items-center gap-3 px-3" style={songVars(col)}
+    <motion.div dir={dir()} className="absolute inset-0 flex items-center gap-3 px-3" style={songVars(col)}
                 initial={{ opacity: 0, filter: 'blur(3px)' }} animate={{ opacity: 1, filter: 'blur(0px)', transition: spring.content }}>
       <Backdrop art={art} />
       <span className="relative"><Cover art={art} size={40} /></span>

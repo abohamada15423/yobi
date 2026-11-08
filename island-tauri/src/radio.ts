@@ -4,11 +4,11 @@
 import { bridge } from './bridge';
 import { useIsland, type IslandStore } from './store';
 import type { Station } from './types';
+import { T, fmt } from './i18n';
 
 const audio = new Audio();
 audio.preload = 'none';
 let tries = 0;
-const nf = new Intl.NumberFormat('ar-EG');
 const get = () => useIsland.getState();
 const set = (p: Partial<IslandStore['radio']>) => useIsland.setState(s => ({ radio: { ...s.radio, ...p } }));
 
@@ -21,12 +21,12 @@ export function radioPlay(st?: Station) {
   const url = get().radio.url;
   if (!url) return;
   audio.src = url;
-  set({ msg: 'بيوصل…' });
+  set({ msg: T('بيوصل…', 'Connecting…') });
   audio.play().then(() => {
     tries = 0;
     set({ playing: true, msg: '' });
-    if ('mediaSession' in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: get().radio.name, artist: 'إذاعة القرآن الكريم' });
-  }).catch(() => set({ playing: false, msg: 'البث مش متاح دلوقتي' }));
+    if ('mediaSession' in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: get().radio.name, artist: T('إذاعة القرآن الكريم', 'Quran Radio') });
+  }).catch(() => set({ playing: false, msg: T('البث مش متاح دلوقتي', 'The stream isn’t available right now') }));
 }
 
 export function radioStop(msg = '') {
@@ -46,7 +46,7 @@ audio.addEventListener('error', () => {
   if (!get().radio.playing) return;
   const wait = [2, 5, 15][Math.min(tries, 2)];
   tries++;
-  set({ msg: `البث وقف، هرجّعه بعد ${nf.format(wait)} ثواني` });
+  set({ msg: T(`البث وقف، هرجّعه بعد ${fmt.num(wait)} ثواني`, `The stream dropped, retrying in ${wait} s`) });
   setTimeout(() => { if (get().radio.playing) radioPlay(); }, wait * 1000);
 });
 

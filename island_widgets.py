@@ -30,10 +30,10 @@ LANGS = {
 }
 APP_NAMES = {
     "spotify": "Spotify", "chrome": "Chrome", "msedge": "Edge", "firefox": "Firefox",
-    "308046b0af4a39cb": "Firefox", "vlc": "VLC", "zunemusic": "مشغل الوسائط",
-    "microsoft.media.player": "مشغل الوسائط", "brave": "Brave", "opera": "Opera",
-    "applemusic": "Apple Music", "anghami": "أنغامي", "youtube music": "YouTube Music",
-    "electron": "يوبي",
+    "308046b0af4a39cb": "Firefox", "vlc": "VLC", "zunemusic": ("مشغل الوسائط", "Media Player"),
+    "microsoft.media.player": ("مشغل الوسائط", "Media Player"), "brave": "Brave", "opera": "Opera",
+    "applemusic": "Apple Music", "anghami": ("أنغامي", "Anghami"), "youtube music": "YouTube Music",
+    "electron": ("يوبي", "Yobi"),   # (Arabic, English) where the name differs
 }
 LOW_BATTERY = 20
 
@@ -43,12 +43,13 @@ _user32 = ctypes.windll.user32 if hasattr(ctypes, "windll") else None
 def app_label(app_id):
     """'SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify' -> 'Spotify'."""
     a = (app_id or "").lower()
+    from island_tools import tr
     for key, name in APP_NAMES.items():
         if key in a:
-            return name
+            return tr(*name) if isinstance(name, tuple) else name
     tail = (app_id or "").split("!")[-1]
     tail = tail[:-4] if tail.lower().endswith(".exe") else tail
-    return tail.split("_")[0].split(".")[-1][:24] or "مشغل"
+    return tail.split("_")[0].split(".")[-1][:24] or tr("مشغل", "Player")
 
 
 def same_app(app_id, exe_name):

@@ -8,44 +8,52 @@ import { bridge, type Screen } from '../bridge';
 import { spring } from '../motion';
 import type { InMsg } from '../types';
 import { Bars } from './CompactIsland';
+import { useIsland } from '../store';
+import { T, dir, fmt } from '../i18n';
 
 type Sec = 'island' | 'daily';
 interface City { name: string; lat: number; lon: number; method: string }
 interface S { island: Record<string, unknown>; daily: Record<string, unknown>; themes: string[]; methods: string[]; cities: City[] }
 
-const THEME_NAMES: Record<string, string> = { faience: 'فيروزي', night: 'ليل', papyrus: 'بردي', nile: 'نيل', carnelian: 'عقيق' };
 const THEME_COLORS: Record<string, [string, string]> = {
   faience: ['#3CC2B4', '#E3B04B'], night: ['#45D0C1', '#E3B04B'], papyrus: ['#D8B56A', '#E3B04B'], nile: ['#7FD6C2', '#E3B04B'], carnelian: ['#E8A25B', '#E9C46A'],
 };
-const METHODS: Record<string, string> = {
-  EGYPT: 'الهيئة المصرية العامة للمساحة', MAKKAH: 'أم القرى، مكة', MWL: 'رابطة العالم الإسلامي', KARACHI: 'جامعة العلوم الإسلامية، كراتشي', ISNA: 'أمريكا الشمالية (ISNA)',
-};
-const SHORTCUTS: [string, string][] = [['Ctrl+Alt+I', 'Ctrl + Alt + I'], ['Ctrl+Alt+Space', 'Ctrl + Alt + Space'], ['Ctrl+Shift+Space', 'Ctrl + Shift + Space'], ['Alt+Shift+Y', 'Alt + Shift + Y'], ['', 'من غير اختصار']];
-const SECTIONS: { id: string; title: string; icon: LucideIcon; color: string; tryIt?: [string, string] }[] = [
-  { id: 'look', title: 'الشكل', icon: Palette, color: '#C792EA', tryIt: ['reply', 'جرّب على الجزيرة'] },
-  { id: 'shows', title: 'الجزيرة بتعرض إيه', icon: Eye, color: '#3CC2B4' },
-  { id: 'moments', title: 'لحظات وإضافات', icon: Sparkles, color: '#F0A43A', tryIt: ['brief', 'جرّب صباح الخير'] },
-  { id: 'prayer', title: 'الصلاة', icon: MoonStar, color: '#E3B04B', tryIt: ['adhan', 'جرّب تنبيه الأذان'] },
-  { id: 'focus', title: 'التركيز', icon: Timer, color: '#5AA9FF' },
-  { id: 'remind', title: 'الأذكار والأدعية والآيات', icon: BookOpen, color: '#7BD88F', tryIt: ['reminder', 'جرّب تذكير'] },
-  { id: 'meet', title: 'الاجتماعات', icon: Calendar, color: '#7FA8FF' },
-  { id: 'keys', title: 'الاختصار والشاشة', icon: Keyboard, color: '#A1A1A6' },
-];
 type Sw = [string, string, string?];   // key, label, small print
-const SHOWS: Sw[] = [
-  ['island.idle_clock', 'الساعة على الجزيرة وهي هادية'], ['island.music_tab', 'الأغنية اللي شغالة'], ['island.track_peek', 'اسم الأغنية لما تتغير'],
-  ['island.downloads', 'التحميلات اللي في فولدر التحميلات'], ['island.screenshot_toast', 'لقطات الشاشة والصور اللي بتنسخها'],
-  ['island.clipboard_history', 'سجل الحافظة', 'بيتحفظ في الذاكرة بس لحد ما يوبي يتقفل، وبيتجاهل كلمات السر'],
-  ['island.privacy_dots', 'نقطة لما برنامج يستخدم المايك أو الكاميرا'],
-  ['island.hide_fullscreen', 'تستخبى وقت الألعاب والأفلام اللي على الشاشة كلها', 'يوبي والأذان والاجتماعات بيظهروا برضه'],
-];
-const MOMENTS: Sw[] = [
-  ['island.weather', 'الطقس في مدينة الصلاة'], ['island.net_toasts', 'قولّي لما النت يفصل أو يرجع'],
-  ['island.smart_clipboard', 'الحافظة الذكية', 'لينك تفتحه، لون تشوفه، حسبة تتحل، أو عدد كلمات النص الطويل'],
-  ['island.morning_brief', 'صباح الخير أول ما تقعد على الجهاز'], ['island.welcome_back', 'أهلا رجعت، باللي حصل وإنت مش موجود'],
-  ['island.wellbeing', 'فكّرني آخد بريك بعد ٥٠ دقيقة شغل'], ['island.celebrate', 'احتفال صغير لما أكمّل هدف'],
-  ['island.radio_pause_prayer', 'وقّف إذاعة القرآن وقت الأذان'], ['island.battery_saver', 'توفير البطارية: من غير حركة لما البطارية تقل'],
-];
+// every word here follows the island's language (Settings → Look → Language), so they're built at render time
+function words() {
+  const THEME_NAMES: Record<string, string> = { faience: T('فيروزي', 'Faience'), night: T('ليل', 'Night'), papyrus: T('بردي', 'Papyrus'), nile: T('نيل', 'Nile'), carnelian: T('عقيق', 'Carnelian') };
+  const METHODS: Record<string, string> = {
+    EGYPT: T('الهيئة المصرية العامة للمساحة', 'Egyptian General Authority of Survey'), MAKKAH: T('أم القرى، مكة', 'Umm al-Qura, Makkah'),
+    MWL: T('رابطة العالم الإسلامي', 'Muslim World League'), KARACHI: T('جامعة العلوم الإسلامية، كراتشي', 'University of Islamic Sciences, Karachi'), ISNA: T('أمريكا الشمالية (ISNA)', 'North America (ISNA)'),
+  };
+  const SHORTCUTS: [string, string][] = [['Ctrl+Alt+I', 'Ctrl + Alt + I'], ['Ctrl+Alt+Space', 'Ctrl + Alt + Space'], ['Ctrl+Shift+Space', 'Ctrl + Shift + Space'], ['Alt+Shift+Y', 'Alt + Shift + Y'], ['', T('من غير اختصار', 'No shortcut')]];
+  const SECTIONS: { id: string; title: string; icon: LucideIcon; color: string; tryIt?: [string, string] }[] = [
+    { id: 'look', title: T('الشكل', 'Look'), icon: Palette, color: '#C792EA', tryIt: ['reply', T('جرّب على الجزيرة', 'Try it on the island')] },
+    { id: 'shows', title: T('الجزيرة بتعرض إيه', 'What the island shows'), icon: Eye, color: '#3CC2B4' },
+    { id: 'moments', title: T('لحظات وإضافات', 'Moments and extras'), icon: Sparkles, color: '#F0A43A', tryIt: ['brief', T('جرّب صباح الخير', 'Try good morning')] },
+    { id: 'prayer', title: T('الصلاة', 'Prayer'), icon: MoonStar, color: '#E3B04B', tryIt: ['adhan', T('جرّب تنبيه الأذان', 'Try the adhan alert')] },
+    { id: 'focus', title: T('التركيز', 'Focus'), icon: Timer, color: '#5AA9FF' },
+    { id: 'remind', title: T('الأذكار والأدعية والآيات', 'Dhikr, duas and verses'), icon: BookOpen, color: '#7BD88F', tryIt: ['reminder', T('جرّب تذكير', 'Try a reminder')] },
+    { id: 'meet', title: T('الاجتماعات', 'Meetings'), icon: Calendar, color: '#7FA8FF' },
+    { id: 'keys', title: T('الاختصار والشاشة', 'Shortcut and screen'), icon: Keyboard, color: '#A1A1A6' },
+  ];
+  const SHOWS: Sw[] = [
+    ['island.idle_clock', T('الساعة على الجزيرة وهي هادية', 'The clock while the island is idle')], ['island.music_tab', T('الأغنية اللي شغالة', 'The song that’s playing')],
+    ['island.track_peek', T('اسم الأغنية لما تتغير', 'The song’s name when it changes')],
+    ['island.downloads', T('التحميلات اللي في فولدر التحميلات', 'Downloads in the Downloads folder')], ['island.screenshot_toast', T('لقطات الشاشة والصور اللي بتنسخها', 'Screenshots and images you copy')],
+    ['island.clipboard_history', T('سجل الحافظة', 'Clipboard history'), T('بيتحفظ في الذاكرة بس لحد ما يوبي يتقفل، وبيتجاهل كلمات السر', 'Kept in memory only until Yobi closes, and skips passwords')],
+    ['island.privacy_dots', T('نقطة لما برنامج يستخدم المايك أو الكاميرا', 'A dot when an app uses the microphone or camera')],
+    ['island.hide_fullscreen', T('تستخبى وقت الألعاب والأفلام اللي على الشاشة كلها', 'Hide during full-screen games and movies'), T('يوبي والأذان والاجتماعات بيظهروا برضه', 'Yobi, the adhan and meetings still show')],
+  ];
+  const MOMENTS: Sw[] = [
+    ['island.weather', T('الطقس في مدينة الصلاة', 'Weather in the prayer city')], ['island.net_toasts', T('قولّي لما النت يفصل أو يرجع', 'Tell me when the internet drops or comes back')],
+    ['island.smart_clipboard', T('الحافظة الذكية', 'Smart clipboard'), T('لينك تفتحه، لون تشوفه، حسبة تتحل، أو عدد كلمات النص الطويل', 'A link to open, a colour to see, a sum solved, or a long text’s word count')],
+    ['island.morning_brief', T('صباح الخير أول ما تقعد على الجهاز', 'Good morning when you first sit down')], ['island.welcome_back', T('أهلا رجعت، باللي حصل وإنت مش موجود', 'Welcome back, with what happened while you were away')],
+    ['island.wellbeing', T('فكّرني آخد بريك بعد ٥٠ دقيقة شغل', 'Remind me to take a break after 50 minutes of work')], ['island.celebrate', T('احتفال صغير لما أكمّل هدف', 'A small celebration when I reach a goal')],
+    ['island.radio_pause_prayer', T('وقّف إذاعة القرآن وقت الأذان', 'Pause the Quran radio during the adhan')], ['island.battery_saver', T('توفير البطارية: من غير حركة لما البطارية تقل', 'Battery saver: no animation when the battery is low')],
+  ];
+  return { THEME_NAMES, METHODS, SHORTCUTS, SECTIONS, SHOWS, MOMENTS };
+}
 
 /* ── the building blocks ── */
 function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
@@ -92,7 +100,7 @@ export function SettingsWindow() {
   const main = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const flash = (text = 'اتحفظ ✓') => { setSaved(text); clearTimeout(timer.current); timer.current = setTimeout(() => setSaved(''), 1800); };
+  const flash = (text = T('اتحفظ ✓', 'Saved ✓')) => { setSaved(text); clearTimeout(timer.current); timer.current = setTimeout(() => setSaved(''), 1800); };
   const save = (section: Sec, values: Record<string, unknown>) => bridge.send({ t: 'settings_set', section, values });
   const get = (key: string) => { const [s, k] = key.split('.') as [Sec, string]; return S?.[s]?.[k]; };
   const put = (key: string, v: unknown) => { const [s, k] = key.split('.') as [Sec, string]; save(s, { [k]: v }); };
@@ -101,7 +109,10 @@ export function SettingsWindow() {
     let got = false, retry: ReturnType<typeof setInterval> | undefined;
     // ask only once we're listening (Python answers in milliseconds), and again until the answer comes
     void bridge.onMessage((m: InMsg) => {
-      if (m.t === 'settings') { got = true; clearInterval(retry); const s = m as unknown as S; setS(s); setIcal(String(s.daily.calendar_ical || '')); }
+      if (m.t === 'settings') {
+        got = true; clearInterval(retry); const s = m as unknown as S;
+        useIsland.setState(st => ({ prefs: { ...st.prefs, lang: s.island.lang } }));   // T() reads the language from here
+        setS(s); setIcal(String(s.daily.calendar_ical || '')); }
       else if (m.t === 'settings_saved') flash();
     }).then(() => {
       bridge.send({ t: 'settings_get' });
@@ -121,20 +132,21 @@ export function SettingsWindow() {
     return () => spy.disconnect();
   }, [S]);
 
+  const { THEME_NAMES, METHODS, SHORTCUTS, SECTIONS, SHOWS, MOMENTS } = words();
   // search: a setting shows when its words (or its section's title) match
-  const match = (...words: (string | undefined)[]) => !q.trim() || words.some(w => w?.includes(q.trim()));
+  const match = (...ws: (string | undefined)[]) => !q.trim() || ws.some(w => w?.toLowerCase().includes(q.trim().toLowerCase()));
   const visible = useMemo(() => {
-    const words: Record<string, string[]> = {
-      look: ['الشكل', 'حركة أقل', ...Object.values(THEME_NAMES)], shows: SHOWS.flatMap(([, l, s]) => [l, s || '']),
-      moments: [...MOMENTS.flatMap(([, l, s]) => [l, s || '']), 'لما البطارية توصل'],
-      prayer: ['المدينة', 'الطريقة', 'العصر', 'نبّهني قبلها', 'نبّهني بمواعيد الصلاة', 'خط العرض', 'خط الطول'],
-      focus: ['التركيز', 'الراحة', 'الراحة الطويلة'], remind: ['فكّرني', 'كل', 'ساعات هادية'], meet: ['iCal', 'الرابط', 'تقويم'],
-      keys: ['اختصار', 'الشاشة', 'شغّل يوبي لما أفتح الويندوز'],
+    const ws: Record<string, string[]> = {
+      look: [T('حركة أقل', 'Less motion'), T('اللغة', 'Language'), 'English', 'عربي', ...Object.values(THEME_NAMES)], shows: SHOWS.flatMap(([, l, s]) => [l, s || '']),
+      moments: [...MOMENTS.flatMap(([, l, s]) => [l, s || '']), T('لما البطارية توصل', 'battery saver at')],
+      prayer: [T('المدينة', 'City'), T('الطريقة', 'Method'), T('العصر', 'Asr'), T('نبّهني قبلها', 'Alert me before'), T('نبّهني بمواعيد الصلاة', 'Prayer time alerts'), T('خط العرض', 'Latitude'), T('خط الطول', 'Longitude')],
+      focus: [T('التركيز', 'Focus'), T('الراحة', 'Break'), T('الراحة الطويلة', 'Long break')], remind: [T('فكّرني', 'Remind me'), T('كل', 'Every'), T('ساعات هادية', 'Quiet hours')], meet: ['iCal', T('الرابط', 'Link'), T('تقويم', 'Calendar')],
+      keys: [T('اختصار', 'Shortcut'), T('الشاشة', 'Screen'), T('شغّل يوبي لما أفتح الويندوز', 'Start Yobi with Windows')],
     };
-    return Object.fromEntries(SECTIONS.map(s => [s.id, match(s.title, ...words[s.id])]));
-  }, [q]);   // match only reads q
+    return Object.fromEntries(SECTIONS.map(s => [s.id, match(s.title, ...ws[s.id])]));
+  }, [q, S?.island.lang]);   // match only reads q; the words follow the language
 
-  if (!S) return <div dir="rtl" className="grid h-full place-items-center bg-[#0c0c0f] font-ui text-ink-2" aria-busy="true">بجيب الإعدادات…</div>;
+  if (!S) return <div dir={dir()} className="grid h-full place-items-center bg-[#0c0c0f] font-ui text-ink-2" aria-busy="true">{T('بجيب الإعدادات…', 'Loading settings…')}</div>;
 
   const sw = ([key, label, sub]: Sw) => (
     <Row key={key} label={label} sub={sub} hide={!match(label, sub, SECTIONS.find(s => s.id === 'shows')!.title, SECTIONS.find(s => s.id === 'moments')!.title)}>
@@ -145,11 +157,12 @@ export function SettingsWindow() {
   const quiet = String(S.daily.quiet_hours || '');
   const [qFrom, qTo] = quiet ? quiet.split('-') : ['23:00', '07:00'];
   const accent = THEME_COLORS[String(S.island.theme)]?.[0] || '#3CC2B4';
+  const MIN = T('دقيقة', 'min');
   const go = (id: string) => main.current?.querySelector(`#s-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const sections: Record<string, ReactNode> = {
     look: (
       <>
-        <div className="grid grid-cols-5 gap-2.5" role="radiogroup" aria-label="شكل الجزيرة">
+        <div className="grid grid-cols-5 gap-2.5" role="radiogroup" aria-label={T('شكل الجزيرة', 'Island theme')}>
           {S.themes.map(name => {
             const [a, g] = THEME_COLORS[name] || ['#3CC2B4', '#E3B04B'], on = S.island.theme === name;
             return (
@@ -162,67 +175,77 @@ export function SettingsWindow() {
             );
           })}
         </div>
-        <Group><Row label="حركة أقل" sub="من غير موجات ونبض، والكلام بيظهر مرة واحدة"><Switch on={!!S.island.reduce_motion} onChange={v => put('island.reduce_motion', v)} label="حركة أقل" /></Row></Group>
+        <Group>
+          <Row label={T('اللغة', 'Language')} sub={T('كلام الجزيرة والإعدادات', 'The island’s and settings’ words')}>
+            <span className="flex rounded-[10px] bg-white/[.07] p-0.5 ring-1 ring-white/10" role="radiogroup" aria-label={T('اللغة', 'Language')}>
+              {([['ar', 'عربي'], ['en', 'English']] as const).map(([v, l]) => (
+                <button key={v} type="button" role="radio" aria-checked={(S.island.lang || 'ar') === v} onClick={() => put('island.lang', v)}
+                        className={`rounded-[8px] px-3 py-1 text-[12.5px] ${(S.island.lang || 'ar') === v ? 'bg-accent font-semibold text-island' : 'text-ink-2 hover:text-ink'}`}>{l}</button>
+              ))}
+            </span>
+          </Row>
+          <Row label={T('حركة أقل', 'Less motion')} sub={T('من غير موجات ونبض، والكلام بيظهر مرة واحدة', 'No waves or pulses, and text appears at once')}><Switch on={!!S.island.reduce_motion} onChange={v => put('island.reduce_motion', v)} label={T('حركة أقل', 'Less motion')} /></Row>
+        </Group>
       </>
     ),
     shows: <Group>{SHOWS.map(sw)}</Group>,
     moments: (
       <Group>
         {MOMENTS.map(sw)}
-        <Row label="توفير البطارية لما توصل" hide={!match('لما البطارية توصل', 'لحظات وإضافات')}>
-          <NumberBox value={S.island.battery_saver_at} min={10} max={100} unit="٪" label="نسبة توفير البطارية" onSave={v => put('island.battery_saver_at', v)} />
+        <Row label={T('توفير البطارية لما توصل', 'Battery saver at')} hide={!match(T('لما البطارية توصل', 'battery saver at'), SECTIONS[2].title)}>
+          <NumberBox value={S.island.battery_saver_at} min={10} max={100} unit={T('٪', '%')} label={T('نسبة توفير البطارية', 'Battery saver level')} onSave={v => put('island.battery_saver_at', v)} />
         </Row>
       </Group>
     ),
     prayer: (
       <Group>
-        <Row label="المدينة">
-          <select className={field} aria-label="المدينة" value={city ? city.name : '__other'} onChange={e => {
+        <Row label={T('المدينة', 'City')}>
+          <select className={field} aria-label={T('المدينة', 'City')} value={city ? city.name : '__other'} onChange={e => {
             const c = S.cities.find(x => x.name === e.target.value);
             if (c) save('daily', { city: c.name, lat: c.lat, lon: c.lon, method: c.method });
             else save('daily', { city: 'مكان تاني' });
           }}>
             {S.cities.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-            <option value="__other">مكان تاني (اكتب الإحداثيات)</option>
+            <option value="__other">{T('مكان تاني (اكتب الإحداثيات)', 'Somewhere else (enter coordinates)')}</option>
           </select>
         </Row>
-        {!city && <Row label="خط العرض"><NumberBox value={S.daily.lat} min={-66} max={66} step={0.0001} label="خط العرض" onSave={v => put('daily.lat', v)} /></Row>}
-        {!city && <Row label="خط الطول"><NumberBox value={S.daily.lon} min={-180} max={180} step={0.0001} label="خط الطول" onSave={v => put('daily.lon', v)} /></Row>}
-        <Row label="طريقة الحساب">
-          <select className={`${field} max-w-64`} aria-label="طريقة الحساب" value={String(S.daily.method)} onChange={e => put('daily.method', e.target.value)}>
+        {!city && <Row label={T('خط العرض', 'Latitude')}><NumberBox value={S.daily.lat} min={-66} max={66} step={0.0001} label={T('خط العرض', 'Latitude')} onSave={v => put('daily.lat', v)} /></Row>}
+        {!city && <Row label={T('خط الطول', 'Longitude')}><NumberBox value={S.daily.lon} min={-180} max={180} step={0.0001} label={T('خط الطول', 'Longitude')} onSave={v => put('daily.lon', v)} /></Row>}
+        <Row label={T('طريقة الحساب', 'Calculation method')}>
+          <select className={`${field} max-w-64`} aria-label={T('طريقة الحساب', 'Calculation method')} value={String(S.daily.method)} onChange={e => put('daily.method', e.target.value)}>
             {(S.methods || Object.keys(METHODS)).map(m => <option key={m} value={m}>{METHODS[m] || m}</option>)}
           </select>
         </Row>
-        <Row label="العصر">
-          <select className={field} aria-label="العصر" value={String(S.daily.asr)} onChange={e => put('daily.asr', e.target.value)}>
-            <option value="standard">الجمهور (شافعي، مالكي، حنبلي)</option><option value="hanafi">الحنفي</option>
+        <Row label={T('العصر', 'Asr')}>
+          <select className={field} aria-label={T('العصر', 'Asr')} value={String(S.daily.asr)} onChange={e => put('daily.asr', e.target.value)}>
+            <option value="standard">{T('الجمهور (شافعي، مالكي، حنبلي)', 'Standard (Shafi‘i, Maliki, Hanbali)')}</option><option value="hanafi">{T('الحنفي', 'Hanafi')}</option>
           </select>
         </Row>
-        <Row label="نبّهني قبلها بـ"><NumberBox value={S.daily.prayer_soon_min} min={0} max={30} unit="دقيقة" label="التنبيه قبل الصلاة" onSave={v => put('daily.prayer_soon_min', v)} /></Row>
-        <Row label="نبّهني بمواعيد الصلاة"><Switch on={!!S.daily.prayer_alerts} onChange={v => put('daily.prayer_alerts', v)} label="نبّهني بمواعيد الصلاة" /></Row>
+        <Row label={T('نبّهني قبلها بـ', 'Alert me before by')}><NumberBox value={S.daily.prayer_soon_min} min={0} max={30} unit={MIN} label={T('التنبيه قبل الصلاة', 'Alert before the prayer')} onSave={v => put('daily.prayer_soon_min', v)} /></Row>
+        <Row label={T('نبّهني بمواعيد الصلاة', 'Prayer time alerts')}><Switch on={!!S.daily.prayer_alerts} onChange={v => put('daily.prayer_alerts', v)} label={T('نبّهني بمواعيد الصلاة', 'Prayer time alerts')} /></Row>
       </Group>
     ),
     focus: (
       <>
         <Group>
-          <Row label="التركيز"><NumberBox value={S.daily.focus_min} min={5} max={120} unit="دقيقة" label="مدة التركيز" onSave={v => put('daily.focus_min', v)} /></Row>
-          <Row label="الراحة"><NumberBox value={S.daily.break_min} min={1} max={60} unit="دقيقة" label="مدة الراحة" onSave={v => put('daily.break_min', v)} /></Row>
-          <Row label="الراحة الطويلة" sub="كل رابع راحة بتبقى طويلة"><NumberBox value={S.daily.long_break_min} min={5} max={60} unit="دقيقة" label="مدة الراحة الطويلة" onSave={v => put('daily.long_break_min', v)} /></Row>
+          <Row label={T('التركيز', 'Focus')}><NumberBox value={S.daily.focus_min} min={5} max={120} unit={MIN} label={T('مدة التركيز', 'Focus length')} onSave={v => put('daily.focus_min', v)} /></Row>
+          <Row label={T('الراحة', 'Break')}><NumberBox value={S.daily.break_min} min={1} max={60} unit={MIN} label={T('مدة الراحة', 'Break length')} onSave={v => put('daily.break_min', v)} /></Row>
+          <Row label={T('الراحة الطويلة', 'Long break')} sub={T('كل رابع راحة بتبقى طويلة', 'Every fourth break is a long one')}><NumberBox value={S.daily.long_break_min} min={5} max={60} unit={MIN} label={T('مدة الراحة الطويلة', 'Long break length')} onSave={v => put('daily.long_break_min', v)} /></Row>
         </Group>
       </>
     ),
     remind: (
       <Group>
-        <Row label="فكّرني بذكر أو دعاء أو آية"><Switch on={!!S.daily.reminders} onChange={v => put('daily.reminders', v)} label="فكّرني" /></Row>
-        <Row label="كل"><NumberBox value={S.daily.remind_every_min} min={1} max={240} unit="دقيقة" label="كل كام دقيقة" onSave={v => put('daily.remind_every_min', v)} /></Row>
-        <Row label="وتفضل ظاهرة"><NumberBox value={S.daily.remind_for_s} min={5} max={300} unit="ثانية" label="تفضل ظاهرة كام ثانية" onSave={v => put('daily.remind_for_s', v)} /></Row>
-        <Row label="ساعات هادية من غير تذكير"><Switch on={!!quiet} onChange={v => save('daily', { quiet_hours: v ? `${qFrom}-${qTo}` : '' })} label="ساعات هادية" /></Row>
+        <Row label={T('فكّرني بذكر أو دعاء أو آية', 'Remind me with a dhikr, dua or verse')}><Switch on={!!S.daily.reminders} onChange={v => put('daily.reminders', v)} label={T('فكّرني', 'Remind me')} /></Row>
+        <Row label={T('كل', 'Every')}><NumberBox value={S.daily.remind_every_min} min={1} max={240} unit={MIN} label={T('كل كام دقيقة', 'Every how many minutes')} onSave={v => put('daily.remind_every_min', v)} /></Row>
+        <Row label={T('وتفضل ظاهرة', 'Shown for')}><NumberBox value={S.daily.remind_for_s} min={5} max={300} unit={T('ثانية', 'seconds')} label={T('تفضل ظاهرة كام ثانية', 'Shown for how many seconds')} onSave={v => put('daily.remind_for_s', v)} /></Row>
+        <Row label={T('ساعات هادية من غير تذكير', 'Quiet hours without reminders')}><Switch on={!!quiet} onChange={v => save('daily', { quiet_hours: v ? `${qFrom}-${qTo}` : '' })} label={T('ساعات هادية', 'Quiet hours')} /></Row>
         {!!quiet && (
-          <Row label="من … لحد">
+          <Row label={T('من … لحد', 'From … to')}>
             <span className="flex items-center gap-2 text-[12px] text-ink-2" dir="ltr">
-              <input type="time" defaultValue={qFrom} key={`f${qFrom}`} aria-label="من" className={field} onChange={e => e.target.value && save('daily', { quiet_hours: `${e.target.value}-${qTo}` })} />
+              <input type="time" defaultValue={qFrom} key={`f${qFrom}`} aria-label={T('من', 'From')} className={field} onChange={e => e.target.value && save('daily', { quiet_hours: `${e.target.value}-${qTo}` })} />
               <span>→</span>
-              <input type="time" defaultValue={qTo} key={`t${qTo}`} aria-label="لحد" className={field} onChange={e => e.target.value && save('daily', { quiet_hours: `${qFrom}-${e.target.value}` })} />
+              <input type="time" defaultValue={qTo} key={`t${qTo}`} aria-label={T('لحد', 'To')} className={field} onChange={e => e.target.value && save('daily', { quiet_hours: `${qFrom}-${e.target.value}` })} />
             </span>
           </Row>
         )}
@@ -230,50 +253,50 @@ export function SettingsWindow() {
     ),
     meet: (
       <>
-        <p className="m-0 text-[12px] leading-relaxed text-ink-2">حط الرابط السري بصيغة iCal من تقويم جوجل أو Outlook، ويوبي هينبهك قبل كل اجتماع بخمس دقايق. الرابط بيتحفظ على جهازك بس.</p>
+        <p className="m-0 text-[12px] leading-relaxed text-ink-2">{T('حط الرابط السري بصيغة iCal من تقويم جوجل أو Outlook، ويوبي هينبهك قبل كل اجتماع بخمس دقايق. الرابط بيتحفظ على جهازك بس.', 'Paste the secret iCal link from Google Calendar or Outlook, and Yobi will alert you five minutes before each meeting. The link stays on this PC.')}</p>
         <div className="flex gap-2">
           <input type={showIcal ? 'text' : 'password'} value={ical} onChange={e => setIcal(e.target.value)} dir="ltr" autoComplete="off" spellCheck={false}
-                 placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" aria-label="رابط iCal" className={`${field} min-w-0 flex-1`} />
-          <button type="button" onClick={() => setShowIcal(!showIcal)} className="rounded-[9px] bg-white/[.07] px-3 text-[12.5px] hover:bg-white/[.12]">{showIcal ? 'إخفاء' : 'إظهار'}</button>
+                 placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" aria-label={T('رابط iCal', 'iCal link')} className={`${field} min-w-0 flex-1`} />
+          <button type="button" onClick={() => setShowIcal(!showIcal)} className="rounded-[9px] bg-white/[.07] px-3 text-[12.5px] hover:bg-white/[.12]">{showIcal ? T('إخفاء', 'Hide') : T('إظهار', 'Show')}</button>
           <button type="button" className="rounded-[9px] bg-accent px-4 text-[12.5px] font-semibold text-island" onClick={() => {
             const v = ical.trim();
-            if (v && !/^(https|webcal):\/\/\S+$/i.test(v)) { flash('الرابط لازم يبدأ بـ https://'); return; }
+            if (v && !/^(https|webcal):\/\/\S+$/i.test(v)) { flash(T('الرابط لازم يبدأ بـ https://', 'The link must start with https://')); return; }
             save('daily', { calendar_ical: v });
-          }}>احفظ</button>
+          }}>{T('احفظ', 'Save')}</button>
         </div>
       </>
     ),
     keys: (
       <>
         <Group>
-          <Row label="اختصار فتح الجزيرة">
-            <select className={field} aria-label="اختصار فتح الجزيرة" value={String(S.island.shortcut ?? '')} onChange={e => put('island.shortcut', e.target.value)} dir="ltr">
+          <Row label={T('اختصار فتح الجزيرة', 'Shortcut to open the island')}>
+            <select className={field} aria-label={T('اختصار فتح الجزيرة', 'Shortcut to open the island')} value={String(S.island.shortcut ?? '')} onChange={e => put('island.shortcut', e.target.value)} dir="ltr">
               {SHORTCUTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </Row>
-          <Row label="الجزيرة تظهر على">
-            <select className={field} aria-label="الجزيرة تظهر على" value={String(S.island.display || 'primary')} onChange={e => put('island.display', e.target.value)}>
-              <option value="primary">الشاشة الرئيسية</option>
-              <option value="cursor">الشاشة اللي فيها الماوس</option>
+          <Row label={T('الجزيرة تظهر على', 'Show the island on')}>
+            <select className={field} aria-label={T('الجزيرة تظهر على', 'Show the island on')} value={String(S.island.display || 'primary')} onChange={e => put('island.display', e.target.value)}>
+              <option value="primary">{T('الشاشة الرئيسية', 'The main screen')}</option>
+              <option value="cursor">{T('الشاشة اللي فيها الماوس', 'The screen with the mouse')}</option>
               {screens.length > 1 && screens.map(d => (
-                <option key={d.id} value={d.id}>{`شاشة ${d.n} (${d.w}×${d.h}${d.scale !== 1 ? `، ${Math.round(d.scale * 100)}٪` : ''})${d.primary ? ' — الرئيسية' : ''}`}</option>
+                <option key={d.id} value={d.id}>{`${T('شاشة', 'Screen')} ${d.n} (${d.w}×${d.h}${d.scale !== 1 ? `${T('، ', ', ')}${fmt.pct(d.scale * 100)}` : ''})${d.primary ? T(' — الرئيسية', ' — main') : ''}`}</option>
               ))}
             </select>
           </Row>
-          <Row label="شغّل يوبي لما أفتح الويندوز" sub="لحسابك بس، ومن غير شباك أسود"><Switch on={!!S.island.autostart} onChange={v => put('island.autostart', v)} label="شغّل يوبي مع الويندوز" /></Row>
+          <Row label={T('شغّل يوبي لما أفتح الويندوز', 'Start Yobi with Windows')} sub={T('لحسابك بس، ومن غير شباك أسود', 'For your account only, with no black window')}><Switch on={!!S.island.autostart} onChange={v => put('island.autostart', v)} label={T('شغّل يوبي مع الويندوز', 'Start Yobi with Windows')} /></Row>
         </Group>
-        <p className="m-0 text-[12px] leading-relaxed text-ink-3">بعد الاختصار: الأسهم يمين وشمال بتقلّب الصفحات، و Tab بيتنقل بين الأزرار، و Esc بيقفل. اتكلم مع يوبي من غير ما تنده: Ctrl + Alt + Y.</p>
+        <p className="m-0 text-[12px] leading-relaxed text-ink-3">{T('بعد الاختصار: الأسهم يمين وشمال بتقلّب الصفحات، و Tab بيتنقل بين الأزرار، و Esc بيقفل. اتكلم مع يوبي من غير ما تنده: Ctrl + Alt + Y.', 'After the shortcut: the left and right arrows flip pages, Tab moves between buttons, and Esc closes. Talk to Yobi without the wake word: Ctrl + Alt + Y.')}</p>
       </>
     ),
   };
 
   return (
-    <div dir="rtl" className="flex h-full bg-[#0c0c0f] font-ui text-ink">
-      <nav aria-label="أقسام الإعدادات" className="flex w-60 shrink-0 flex-col gap-1 border-s border-white/5 bg-white/[.02] p-3">
-        <b className="mb-2 px-2 font-display text-[17px]">إعدادات يوبي</b>
+    <div dir={dir()} className="flex h-full bg-[#0c0c0f] font-ui text-ink">
+      <nav aria-label={T('أقسام الإعدادات', 'Settings sections')} className="flex w-60 shrink-0 flex-col gap-1 border-s border-white/5 bg-white/[.02] p-3">
+        <b className="mb-2 px-2 font-display text-[17px]">{T('إعدادات يوبي', 'Yobi settings')}</b>
         <label className="mb-2 flex items-center gap-2 rounded-[10px] bg-white/[.06] px-2.5 py-1.5 text-[12.5px] focus-within:ring-1 focus-within:ring-accent/70">
           <Search className="size-3.5 text-ink-3" aria-hidden="true" />
-          <input type="search" value={q} onChange={e => setQ(e.target.value)} placeholder="دوّر في الإعدادات…" aria-label="دوّر في الإعدادات" className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-ink-3" />
+          <input type="search" value={q} onChange={e => setQ(e.target.value)} placeholder={T('دوّر في الإعدادات…', 'Search settings…')} aria-label={T('دوّر في الإعدادات', 'Search settings')} className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-ink-3" />
         </label>
         {SECTIONS.filter(s => visible[s.id]).map(({ id, title, icon: I, color }) => (
           <button key={id} type="button" onClick={() => go(id)} aria-current={current === id}
@@ -281,14 +304,14 @@ export function SettingsWindow() {
             <span className="grid size-6 place-items-center rounded-[7px]" style={{ background: color }}><I className="size-3.5 text-white" /></span>{title}
           </button>
         ))}
-        {!SECTIONS.some(s => visible[s.id]) && <p className="m-0 px-2 text-[12px] text-ink-3">مفيش إعداد بالاسم ده</p>}
+        {!SECTIONS.some(s => visible[s.id]) && <p className="m-0 px-2 text-[12px] text-ink-3">{T('مفيش إعداد بالاسم ده', 'No setting by that name')}</p>}
         <p role="status" aria-live="polite" className="m-0 mt-auto px-2 text-[12.5px] font-semibold text-accent">{saved}</p>
       </nav>
       <main ref={main} className="min-w-0 flex-1 overflow-y-auto">
         {/* the island, live, in the chosen theme */}
         <div className="sticky top-0 z-10 grid place-items-center bg-[#0c0c0f]/85 py-5 backdrop-blur" style={{ backgroundImage: `radial-gradient(circle at 50% 140%, ${accent}33, transparent 60%)` }}>
           <div className="flex items-center gap-3 rounded-full bg-black px-4 py-2.5 shadow-[0_8px_24px_rgba(0,0,0,.5)] ring-1 ring-white/5" style={{ width: 280 }}>
-            <span className="flex-1 text-[13px] font-semibold">تمام، فتحت ديسكورد</span>
+            <span className="flex-1 text-[13px] font-semibold">{T('تمام، فتحت ديسكورد', 'Done, Discord is open')}</span>
             <Bars level={0.7} />
           </div>
         </div>

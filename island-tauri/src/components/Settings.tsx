@@ -237,6 +237,11 @@ export function SettingsWindow() {
     remind: (
       <Group>
         <Row label={T('فكّرني بذكر أو دعاء أو آية', 'Remind me with a dhikr, dua or verse')}><Switch on={!!S.daily.reminders} onChange={v => put('daily.reminders', v)} label={T('فكّرني', 'Remind me')} /></Row>
+        {([['ayah', T('آيات', 'Verses')], ['dua', T('أدعية', 'Du’as')], ['dhikr', T('أذكار', 'Dhikr')]] as const).map(([k, l]) => (
+          <Row key={k} label={l} sub={k === 'ayah' ? T('بالرسم العثماني من مجمع الملك فهد', 'In the Uthmani script of the King Fahd Complex') : undefined}>
+            <Switch on={S.daily[`remind_${k}`] !== false} onChange={v => put(`daily.remind_${k}`, v)} label={l} />
+          </Row>
+        ))}
         <Row label={T('كل', 'Every')}><NumberBox value={S.daily.remind_every_min} min={1} max={240} unit={MIN} label={T('كل كام دقيقة', 'Every how many minutes')} onSave={v => put('daily.remind_every_min', v)} /></Row>
         <Row label={T('وتفضل ظاهرة', 'Shown for')}><NumberBox value={S.daily.remind_for_s} min={5} max={300} unit={T('ثانية', 'seconds')} label={T('تفضل ظاهرة كام ثانية', 'Shown for how many seconds')} onSave={v => put('daily.remind_for_s', v)} /></Row>
         <Row label={T('ساعات هادية من غير تذكير', 'Quiet hours without reminders')}><Switch on={!!quiet} onChange={v => save('daily', { quiet_hours: v ? `${qFrom}-${qTo}` : '' })} label={T('ساعات هادية', 'Quiet hours')} /></Row>

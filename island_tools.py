@@ -45,7 +45,7 @@ DAILY_RANGES = {
     "long_break_min": (5, 60), "remind_every_min": (1, 240), "remind_for_s": (5, 300),
 }
 DAILY_CHOICES = {"method": ("EGYPT", "MWL", "MAKKAH", "KARACHI", "ISNA"), "asr": ("standard", "hanafi")}
-DAILY_BOOLS = ("prayer_alerts", "reminders")
+DAILY_BOOLS = ("prayer_alerts", "reminders", "remind_ayah", "remind_dua", "remind_dhikr")
 CITIES = [  # name, lat, lon, usual method
     ("القاهرة", 30.0444, 31.2357, "EGYPT"), ("الجيزة", 30.0131, 31.2089, "EGYPT"),
     ("الإسكندرية", 31.2001, 29.9187, "EGYPT"), ("المنصورة", 31.0409, 31.3785, "EGYPT"),
@@ -362,10 +362,9 @@ class IslandTools:
             nxt = next((k for k in ("fajr", "dhuhr", "asr", "maghrib", "isha") if times.get(k, 0) > now), "fajr")
             self._send({"t": "notice", "kind": "adhan", "prayer": nxt, "at": times.get(nxt) or int(now)})
         elif what == "reminder":
-            from island_daily import REMINDERS
-            kind, text, ref = random.choice(REMINDERS)
-            secs = int((self._daily.cfg if self._daily else {}).get("remind_for_s", 20))
-            self._send({"t": "notice", "kind": "reminder", "sub": kind, "text": text, "ref": ref, "seconds": secs})
+            from island_daily import reminder_notice, reminder_pool
+            cfg = self._daily.cfg if self._daily else {}
+            self._send(reminder_notice(random.choice(reminder_pool(cfg)), cfg.get("remind_for_s", 20)))
         elif what == "brief" and self.extras is not None:
             self._send(self.extras._brief())
 

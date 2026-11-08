@@ -94,6 +94,17 @@ class TestReminders(unittest.TestCase):
         texts = [m["text"] for m in sent if m.get("kind") == "reminder"]
         self.assertEqual(len(texts), len(set(texts)), len(idl.REMINDERS))
 
+    def test_only_the_kinds_left_on(self):
+        d, sent = make(remind_dua=False, remind_dhikr=False)
+        for _ in range(30):
+            d._next_reminder = 0
+            d._reminder_tick()
+        got = [m for m in sent if m.get("kind") == "reminder"]
+        self.assertEqual({m["sub"] for m in got}, {"ayah"})
+        self.assertTrue(all(m["ref"] and isinstance(m["quran"], bool) for m in got))
+        self.assertEqual(len(idl.reminder_pool({"remind_ayah": False, "remind_dua": False, "remind_dhikr": False})),
+                         len(idl.REMINDERS))       # all off: every text rather than none
+
     def test_dropped_reminder_comes_back(self):
         d, sent = make()
         d._next_reminder = 0

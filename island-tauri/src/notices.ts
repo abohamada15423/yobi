@@ -13,7 +13,9 @@ import type { NoticeMsg } from './types';
 
 export interface NoticeLook {
   icon: LucideIcon; color: string; kind: string; text: string; sub: string;
-  buttons: [string, string][]; ms: number; tones: number[]; swatch?: string; thumb?: string; ayah?: boolean;
+  buttons: [string, string][]; ms: number; tones: number[]; swatch?: string; thumb?: string;
+  /** a dhikr, du'a or verse: big, centred, in the Qur'an font; quran adds the ornate brackets and verse-end marks */
+  ayah?: boolean; quran?: boolean;
 }
 export interface ShownNotice { msg: NoticeMsg; look: NoticeLook; at: number; total: number; until: number; paused: boolean; left: number }
 
@@ -38,9 +40,10 @@ export function noticeLook(m: NoticeMsg, s: IslandStore): NoticeLook | null {
       sub: T(`الراحة بدأت: ${fmt.num(n.next_min)} دقايق`, `Break started: ${n.next_min} minutes`), tones: [659, 784] };
     case 'break_done': return { ...base, icon: Timer, color: TEAL, kind: focusKind, text: T('الراحة خلصت', 'Break’s over'), sub: T('نرجع نركّز؟', 'Back to focus?'),
       buttons: [[T(`ابدأ ${fmt.num(n.focus_min)} د`, `Start ${n.focus_min} min`), 'focus_start'], [T('مش دلوقتي', 'Not now'), 'dismiss']], ms: 30000 };
-    case 'reminder': return { ...base, icon: n.sub === 'ayah' ? BookOpen : n.sub === 'dua' ? HandHeart : Sparkles, color: GREEN,
+    case 'reminder': return { ...base, icon: n.sub === 'ayah' ? BookOpen : n.sub === 'dua' ? HandHeart : Sparkles,
+      color: n.sub === 'ayah' ? '#FFD479' : n.sub === 'dua' ? '#A78BFA' : '#5EEAD4',      // each kind its own colour
       kind: ({ dhikr: T('ذكر', 'Dhikr'), dua: T('دعاء', 'Du’a'), ayah: T('آية', 'Ayah') } as Record<string, string>)[n.sub] || '',
-      text: n.sub === 'ayah' ? `﴿ ${n.text} ﴾` : n.text, sub: n.ref || '', ms: (n.seconds || 20) * 1000, tones: [], ayah: n.sub === 'ayah' };
+      text: n.text, sub: n.ref || '', ms: (n.seconds || 20) * 1000, tones: [], ayah: true, quran: n.sub === 'ayah' || !!n.quran };
     case 'meeting': return { ...base, icon: Video, color: BLUE, kind: T('اجتماع', 'Meeting'), text: n.title,
       sub: T(`الساعة ${at} — بعد ٥ دقايق`, `At ${at} — in 5 minutes`),
       buttons: n.has_link ? [[T('انضم', 'Join'), 'join'], OK()] : [OK()], ms: 60000 };

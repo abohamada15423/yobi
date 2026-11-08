@@ -1,13 +1,33 @@
 // Interface 6: a notice (design B, "the wave"): the kind's colour washes in from the start like the
 // HUD's liquid, a big faint icon sits behind, and a thin line drains as the notice's time runs out.
 import { AnimatePresence, motion } from 'motion/react';
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { useIsland } from '../store';
 import { noticeAction } from '../notices';
 import { spring, stagger } from '../motion';
 import { dir, towardEnd } from '../i18n';
 
 const mix = (c: string, p: number) => `color-mix(in srgb, ${c} ${p}%, transparent)`;
+
+/** a dhikr, du'a or verse as Nova draws it: Qur'an text gets ornate brackets and each verse number
+ *  becomes the verse-end ornament (the Qur'an font draws U+06DD + digits as one mark); commas use the
+ *  UI font, because the Qur'an font draws «،» like a verse end */
+function Words({ text, quran, color }: { text: string; quran?: boolean; color: string }) {
+  const out: ReactNode[] = [];
+  let last = 0;
+  for (const m of text.matchAll(/،|(?<=^|\s)[٠-٩]{1,3}(?=\s|$)/g)) {
+    out.push(text.slice(last, m.index));
+    out.push(m[0] === '،' ? <span key={m.index} className="font-ui text-[.7em] text-ink-2">،</span>
+      : quran ? <span key={m.index} className="mx-[.1em] [unicode-bidi:isolate]" style={{ color }}>{'\u06DD' + m[0]}</span> : m[0]);
+    last = m.index! + m[0].length;
+  }
+  out.push(text.slice(last));
+  if (!quran) return <>{out}</>;
+  const br = (c: string) => <span className="mx-[.22em]" style={{ color }}>{c}</span>;
+  return <>{br('﴿')}{out}{br('﴾')}</>;
+}
+/** bigger for short texts; diacritics and Qur'anic marks add letters but no width */
+const ayahSize = (t: string) => { const n = t.replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g, '').length; return n <= 40 ? 30 : n <= 80 ? 26 : 23; };
 
 /** time left: a line in the notice's colour that drains, and stops while the pointer holds it */
 function Left() {
@@ -39,7 +59,9 @@ function Body() {
         <motion.div variants={item} className="flex items-center gap-3">
           {l.swatch && <span className="size-8 shrink-0 rounded-[10px] ring-1 ring-white/15" style={{ background: l.swatch }} />}
           {l.thumb && <img src={l.thumb} alt="" className="max-h-24 max-w-40 rounded-[10px] object-cover ring-1 ring-white/10" />}
-          {l.text && <p className={`m-0 min-w-0 break-words ${l.ayah ? 'font-quran text-[24px] leading-[1.9]' : 'font-display text-[18px] font-bold leading-snug'}`}><bdi>{l.text}</bdi></p>}
+          {l.text && (l.ayah
+            ? <p dir="rtl" lang="ar" className="m-0 min-w-0 break-words font-quran leading-[1.6] [text-wrap:balance]" style={{ fontSize: ayahSize(l.text), textShadow: `0 1px 12px ${mix(l.color, 25)}` }}><Words text={l.text} quran={l.quran} color={l.color} /></p>
+            : <p className="m-0 min-w-0 break-words font-display text-[18px] font-bold leading-snug"><bdi>{l.text}</bdi></p>)}
         </motion.div>
       )}
       {l.sub && <motion.p variants={item} className="m-0 text-[12px] text-ink-2">{l.sub.split('\n').map((line, i) => <span key={i} className="block"><bdi>{line}</bdi></span>)}</motion.p>}
@@ -71,7 +93,7 @@ export function Notice({ onSize }: { onSize: (w: number, h: number) => void }) {
   if (!n) return null;
   const l = n.look;
   return (
-    <div ref={box} dir={dir()} role="status" aria-live="polite" className="absolute top-0 left-1/2 w-[380px] -translate-x-1/2 overflow-hidden">
+    <div ref={box} dir={dir()} role="status" aria-live="polite" className={`absolute top-0 left-1/2 ${l.ayah ? 'w-[480px]' : 'w-[380px]'} -translate-x-1/2 overflow-hidden`}>
       <span className="pointer-events-none absolute inset-0" style={{ background: `linear-gradient(to ${towardEnd()}, ${mix(l.color, 26)}, transparent 70%)` }} />
       <l.icon className="pointer-events-none absolute -bottom-6 -left-4 size-32 opacity-[.07]" style={{ color: l.color }} aria-hidden="true" />
       {/* a notice replacing another drops in */}

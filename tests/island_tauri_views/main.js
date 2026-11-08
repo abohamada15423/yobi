@@ -455,7 +455,10 @@ app.whenReady().then(async () => {
     ['n_prayer_soon', { t: 'notice', kind: 'prayer_soon', prayer: 'maghrib', minutes: 10, at: T0 }],
     ['n_focus_done', { t: 'notice', kind: 'focus_done', round: 2, next_min: 5 }],
     ['n_break_done', { t: 'notice', kind: 'break_done', focus_min: 25 }],
-    ['n_ayah', { t: 'notice', kind: 'reminder', sub: 'ayah', text: 'أَلَا بِذِكْرِ ٱللَّهِ تَطْمَئِنُّ ٱلْقُلُوبُ', ref: 'الرعد ٢٨', seconds: 20 }],
+    ['n_ayah', {"t": "notice", "kind": "reminder", "sub": "ayah", "text": "ٱلَّذِينَ ءَامَنُواْ وَتَطۡمَئِنُّ قُلُوبُهُم بِذِكۡرِ ٱللَّهِۗ أَلَا بِذِكۡرِ ٱللَّهِ تَطۡمَئِنُّ ٱلۡقُلُوبُ ٢٨", "ref": "الرعد ٢٨", "quran": false, "seconds": 20}],
+    ['n_ayah_long', {"t": "notice", "kind": "reminder", "sub": "ayah", "text": "قُلۡ يَٰعِبَادِيَ ٱلَّذِينَ أَسۡرَفُواْ عَلَىٰٓ أَنفُسِهِمۡ لَا تَقۡنَطُواْ مِن رَّحۡمَةِ ٱللَّهِۚ إِنَّ ٱللَّهَ يَغۡفِرُ ٱلذُّنُوبَ جَمِيعًاۚ إِنَّهُۥ هُوَ ٱلۡغَفُورُ ٱلرَّحِيمُ ٥٣", "ref": "الزمر ٥٣", "quran": false, "seconds": 20}],
+    ['n_dua_quran', {"t": "notice", "kind": "reminder", "sub": "dua", "text": "رَبَّنَآ ءَاتِنَا فِي ٱلدُّنۡيَا حَسَنَةٗ وَفِي ٱلۡأٓخِرَةِ حَسَنَةٗ وَقِنَا عَذَابَ ٱلنَّارِ ٢٠١", "ref": "البقرة ٢٠١", "quran": true, "seconds": 20}],
+    ['n_dua', {"t": "notice", "kind": "reminder", "sub": "dua", "text": "اللهم إني أسألك العفو والعافية في الدنيا والآخرة", "ref": "رواه ابن ماجه", "quran": false, "seconds": 20}],
     ['n_dhikr', { t: 'notice', kind: 'reminder', sub: 'dhikr', text: 'سبحان الله وبحمده، سبحان الله العظيم', seconds: 20 }],
     ['n_meeting', { t: 'notice', kind: 'meeting', id: 'm1', title: 'مراجعة المشروع', at: T0, has_link: true }],
     ['n_download', { t: 'notice', kind: 'download_done', id: 'd1', name: 'movie.mkv', size: 734e6 }],
@@ -474,7 +477,8 @@ app.whenReady().then(async () => {
     const run = c => w.webContents.executeJavaScript(c);
     await sleep(300); await run(deliver(m)); await sleep(900);
     const got = await run(`(() => { const r = ${capsule}.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height), wh: innerHeight, text: ${capsule}.innerText }; })()`);
-    if (got.w !== 380 || got.h + 8 > got.wh || got.h < 60) failures.push(`${name}: the notice should be 380 wide and fit, got ${got.w}x${got.h}`);
+    const wide = m.kind === 'reminder' ? 480 : 380;          // dhikr, du'as and verses get a wider card, as in Nova
+    if (got.w !== wide || got.h + 8 > got.wh || got.h < 60) failures.push(`${name}: the notice should be ${wide} wide and fit, got ${got.w}x${got.h}`);
     fs.writeFileSync(path.join(OUT, `${name}.png`), (await w.webContents.capturePage(ncrop)).toPNG());
     console.log('view', name, `${got.w}x${got.h}`);
     w.destroy();

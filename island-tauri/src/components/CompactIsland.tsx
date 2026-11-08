@@ -7,10 +7,11 @@ import { compactView, hasDots, useIsland, type Compact } from '../store';
 import { spring } from '../motion';
 import { useSongColor } from '../songColor';
 import { T, dir, fmt } from '../i18n';
+import { InfoRow } from './IdleInfo';
 
 /** each compact view's size; the privacy dots add a little room at the trailing edge */
 const SIZE: Record<Compact, [number, number]> = {
-  thin: [64, 6], idle: [96, 28], clock: [112, 28], focus: [176, 32], music: [196, 32], download: [212, 32],
+  thin: [64, 6], idle: [96, 28], clock: [112, 28], info: [360, 28], focus: [176, 32], music: [196, 32], download: [212, 32],
 };
 const DOTS_W = 18;
 export function compactSize(view: Compact, dots: boolean): [number, number] {
@@ -129,7 +130,7 @@ export function Celebrate() {
 }
 
 const CONTENT: Record<Compact, () => ReactNode> = {
-  thin: () => null, idle: () => null, clock: () => <Clock />,
+  thin: () => null, idle: () => null, clock: () => <Clock />, info: () => <InfoRow />,
   focus: () => <FocusLive />, music: () => <MusicLive />, download: () => <DownloadLive />,
 };
 

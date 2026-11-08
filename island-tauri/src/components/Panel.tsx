@@ -1,7 +1,7 @@
 // Interface 3: the open panel (design C, "tiles"): a wide tile for the time, small tiles for the
 // machine, then the dock. The menu and the writing box take the dock's place; pages take the tiles'.
 import { AnimatePresence, motion } from 'motion/react';
-import { Battery, BatteryCharging, Clipboard, Cloud, CloudDrizzle, CloudFog, CloudLightning, CloudMoon, CloudRain, CloudSnow, CloudSun, Cpu, Grid2x2, History, Inbox, MemoryStick, Mic, Moon, MoreHorizontal, PenLine, SendHorizontal, Settings2, Sparkles, Sun, type LucideIcon } from 'lucide-react';
+import { Battery, BatteryCharging, Clipboard, Cpu, Grid2x2, History, Inbox, MemoryStick, Mic, MoreHorizontal, PenLine, SendHorizontal, Settings2, Sparkles, type LucideIcon } from 'lucide-react';
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { bridge } from '../bridge';
 import { closePanel, openChat, sendChat, showPage, toggleMenu } from '../panel';
@@ -9,6 +9,7 @@ import { useIsland, type Page } from '../store';
 import { spring, stagger } from '../motion';
 import { IconButton } from './IconButton';
 import { useNow } from './CompactIsland';
+import { WX_ICON } from './IdleInfo';
 import { MusicTile } from './Music';
 import { DayTiles, PrayerPage, RadioPage, SkyTile } from './Day';
 import { AppsPage, ClipsPage, DownloadsRow, HistoryPage, ShelfPage } from './Work';
@@ -16,8 +17,6 @@ import { songVars, useSongColor } from '../songColor';
 import { T, WEATHER, dir, fmt } from '../i18n';
 
 const pct = fmt.pct;
-const WX_ICON = (c: number, day: boolean): LucideIcon => c === 0 ? (day ? Sun : Moon) : c <= 2 ? (day ? CloudSun : CloudMoon) : c === 3 ? Cloud
-  : c <= 48 ? CloudFog : c <= 57 ? CloudDrizzle : c <= 67 ? CloudRain : c <= 77 ? CloudSnow : c <= 82 ? CloudRain : c <= 86 ? CloudSnow : CloudLightning;
 const WX = WEATHER;
 
 const Tile = ({ children, className = '' }: { children: ReactNode; className?: string }) => (

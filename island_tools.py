@@ -36,7 +36,7 @@ ISLAND_DEFAULTS = {
     "radio_pause_prayer": True,
     "battery_saver_at": 20, "radio_volume": 70, "radio_station": "", "pinned_apps": [],
     # polish
-    "shortcut": "Ctrl+Alt+I", "display": "primary", "idle_clock": True, "autostart": False,
+    "shortcut": "Ctrl+Alt+I", "display": "primary", "idle_clock": True, "idle_info": True, "autostart": False,
 }
 SHORTCUTS = ("Ctrl+Alt+I", "Ctrl+Alt+Space", "Ctrl+Shift+Space", "Alt+Shift+Y", "")
 ISLAND_RANGES = {"battery_saver_at": (10, 100), "radio_volume": (0, 100)}

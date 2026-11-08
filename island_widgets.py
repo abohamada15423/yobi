@@ -263,7 +263,7 @@ class IslandWidgets:
         tick = 0
         while not self._stop.wait(self.STATS_S):
             tick += 1
-            if self._panel_open.is_set():
+            if self._panel_open.is_set() or tick % 3 == 0:     # the idle island shows CPU and RAM too
                 self._push_stats()
             if tick % 10 == 0:                       # battery toasts every ~20 s
                 bat = psutil.sensors_battery()

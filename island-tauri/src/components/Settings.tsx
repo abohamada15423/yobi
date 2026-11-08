@@ -38,7 +38,8 @@ function words() {
     { id: 'keys', title: T('الاختصار والشاشة', 'Shortcut and screen'), icon: Keyboard, color: '#A1A1A6' },
   ];
   const SHOWS: Sw[] = [
-    ['island.idle_clock', T('الساعة على الجزيرة وهي هادية', 'The clock while the island is idle')], ['island.music_tab', T('الأغنية اللي شغالة', 'The song that’s playing')],
+    ['island.idle_clock', T('الساعة على الجزيرة وهي هادية', 'The clock while the island is idle')],
+    ['island.idle_info', T('وجنبها الطقس والمعالج والرامات والصلاة الجاية', 'With the weather, CPU, RAM and the next prayer beside it')], ['island.music_tab', T('الأغنية اللي شغالة', 'The song that’s playing')],
     ['island.track_peek', T('اسم الأغنية لما تتغير', 'The song’s name when it changes')],
     ['island.downloads', T('التحميلات اللي في فولدر التحميلات', 'Downloads in the Downloads folder')], ['island.screenshot_toast', T('لقطات الشاشة والصور اللي بتنسخها', 'Screenshots and images you copy')],
     ['island.clipboard_history', T('سجل الحافظة', 'Clipboard history'), T('بيتحفظ في الذاكرة بس لحد ما يوبي يتقفل، وبيتجاهل كلمات السر', 'Kept in memory only until Yobi closes, and skips passwords')],

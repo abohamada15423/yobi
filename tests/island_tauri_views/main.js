@@ -49,16 +49,24 @@ app.whenReady().then(async () => {
   // interface 1: the compact island and its live activities, one fresh window per state
   const ART = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><defs><linearGradient id="g"><stop offset="0" stop-color="#3CC2B4"/><stop offset="1" stop-color="#E3B04B"/></linearGradient></defs><rect width="48" height="48" fill="url(#g)"/></svg>');
   const soon = 'Date.now() + 1084000';
+  const INFO_STATS = { t: 'stats', cpu: 0.14, ram: 0.71, ram_used: 1, ram_total: 2, battery: null };
+  const INFO_WX = { t: 'weather', temp: 24, code: 2, is_day: true, hi: 27, lo: 16, city: 'القاهرة' };
+  const INFO_PRAYER = `{ t: 'prayer', city: 'القاهرة', times: Object.fromEntries(Object.entries({ fajr: -9, sunrise: -7.7, dhuhr: 0.2, asr: 3.5, maghrib: 5.9, isha: 7.2, next_fajr: 15 }).map(([k, h]) => [k, Date.now() + h * 3600e3])) }`;
   const STATES = [
     // name, messages, expected capsule [w, h] (null = hidden)
-    ['c_clock', [], [112, 28]],
+    ['c_clock', [{ t: 'island_settings', values: { idle_info: false } }], [112, 28]],
+    // at rest, as in Nova: time, date, weather, CPU, RAM, the next prayer
+    ['c_info', [INFO_STATS, INFO_WX, INFO_PRAYER], [360, 28]],
+    ['c_info_hot', [{ ...INFO_STATS, cpu: 0.93, ram: 0.8 }, INFO_WX, INFO_PRAYER], [360, 28]],
+    ['c_info_en', [{ t: 'island_settings', values: { lang: 'en' } }, INFO_STATS, INFO_WX, INFO_PRAYER], [360, 28]],
+    ['c_info_bare', [], [360, 28]],
     ['c_idle', [{ t: 'island_settings', values: { idle_clock: false } }], [96, 28]],
     ['c_thin', [{ t: 'fullscreen', on: false, max: true }], [64, 6]],
-    ['c_dots', [{ t: 'privacy', mic: ['Discord'], cam: ['Zoom'] }], [130, 28]],
+    ['c_dots', [{ t: 'privacy', mic: ['Discord'], cam: ['Zoom'] }], [378, 28]],
     ['c_music', [{ t: 'media', has: true, playing: true, front: false, title: 'سورة الرحمن', artist: 'المنشاوي', art: ART }, { t: 'music_level', v: 0.7 }], [196, 32]],
     ['c_music_noart', [{ t: 'media', has: true, playing: true, front: false, title: 'x' }, { t: 'music_level', v: 0.3 }], [196, 32]],
-    ['c_music_front', [{ t: 'media', has: true, playing: true, front: true, title: 'x' }], [112, 28]],
-    ['c_music_off', [{ t: 'island_settings', values: { music_tab: false } }, { t: 'media', has: true, playing: true, front: false }], [112, 28]],
+    ['c_music_front', [{ t: 'media', has: true, playing: true, front: true, title: 'x' }], [360, 28]],
+    ['c_music_off', [{ t: 'island_settings', values: { music_tab: false } }, { t: 'media', has: true, playing: true, front: false }], [360, 28]],
     ['c_focus', [`{ t: 'focus', phase: 'focus', round: 1, total: 4, ends_at: ${soon} }`], [176, 32]],
     ['c_break', [`{ t: 'focus', phase: 'break', round: 1, total: 4, ends_at: ${soon} }`], [176, 32]],
     ['c_paused', [{ t: 'focus', phase: 'focus', ends_at: null, paused_left: 754 }], [176, 32]],
@@ -75,7 +83,10 @@ app.whenReady().then(async () => {
     const run = c => w.webContents.executeJavaScript(c);
     for (const m of msgs) await run(`window.__yobi.deliver(${typeof m === 'string' ? m : JSON.stringify(m)})`);
     await sleep(900);
-    const got = await run(`(() => { const r = ${capsule}.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height), o: +getComputedStyle(${capsule}).opacity, rect: window.__yobi.lastRect, text: ${capsule}.innerText }; })()`);
+    const got = await run(`(() => { const c = ${capsule}, r = c.getBoundingClientRect();
+      const out = [...c.querySelectorAll('b, span')].some(e => { const q = e.getBoundingClientRect(); return q.width > 0 && (q.left < r.left - 1 || q.right > r.right + 1); });
+      return { w: Math.round(r.width), h: Math.round(r.height), o: +getComputedStyle(c).opacity, rect: window.__yobi.lastRect, text: c.innerText, out }; })()`);
+    if (name.startsWith('c_info') && got.out) failures.push(`${name}: the info spills out of the pill: ${JSON.stringify(got.text)}`);
     if (want === null) {
       if (got.o > 0.05 || !got.rect || got.rect.w !== 0) failures.push(`${name}: should be hidden, got ${JSON.stringify(got)}`);
     } else if (got.w !== want[0] || got.h !== want[1] || got.o < 0.99) {
@@ -83,7 +94,7 @@ app.whenReady().then(async () => {
     } else if (!got.rect || got.rect.w !== want[0] || got.rect.h !== want[1] + 8) {
       failures.push(`${name}: click area ${JSON.stringify(got.rect)} doesn't match the capsule`);
     }
-    fs.writeFileSync(path.join(OUT, `${name}.png`), (await w.webContents.capturePage({ x: 140, y: 0, width: 300, height: 50 })).toPNG());
+    fs.writeFileSync(path.join(OUT, `${name}.png`), (await w.webContents.capturePage({ x: 90, y: 0, width: 400, height: 50 })).toPNG());
     console.log('view', name, `${got.w}x${got.h}`, JSON.stringify(got.text));
     w.destroy();
   }
@@ -411,7 +422,7 @@ app.whenReady().then(async () => {
       await run(deliver(HUDS[0][1])); await sleep(1200);
       expect('', (await run(hs)).hud, 'the HUD should still be up at 1.2 s');
       await sleep(1100); const s = await run(hs);
-      expect('', !s.hud && s.w === 112, `the HUD should be gone by 2.3 s and the clock back, ${JSON.stringify(s)}`);
+      expect('', !s.hud && s.w === 360, `the HUD should be gone by 2.3 s and the clock back, ${JSON.stringify(s)}`);
     }),
     rule('a low battery stays longer', async ({ run }) => {
       await run(deliver(HUDS[5][1])); await sleep(3000);

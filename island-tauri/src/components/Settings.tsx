@@ -98,12 +98,17 @@ export function SettingsWindow() {
   const put = (key: string, v: unknown) => { const [s, k] = key.split('.') as [Sec, string]; save(s, { [k]: v }); };
 
   useEffect(() => {
-    bridge.onMessage((m: InMsg) => {
-      if (m.t === 'settings') { const s = m as unknown as S; setS(s); setIcal(String(s.daily.calendar_ical || '')); }
+    let got = false, retry: ReturnType<typeof setInterval> | undefined;
+    // ask only once we're listening (Python answers in milliseconds), and again until the answer comes
+    void bridge.onMessage((m: InMsg) => {
+      if (m.t === 'settings') { got = true; clearInterval(retry); const s = m as unknown as S; setS(s); setIcal(String(s.daily.calendar_ical || '')); }
       else if (m.t === 'settings_saved') flash();
+    }).then(() => {
+      bridge.send({ t: 'settings_get' });
+      retry = setInterval(() => { if (!got) bridge.send({ t: 'settings_get' }); }, 2000);
     });
-    bridge.send({ t: 'settings_get' });
     void bridge.displays().then(setScreens);
+    return () => clearInterval(retry);
   }, []);
   useEffect(() => { if (S) document.documentElement.dataset.theme = String(S.island.theme || 'faience'); }, [S]);
 

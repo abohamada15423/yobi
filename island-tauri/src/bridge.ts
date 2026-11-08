@@ -6,7 +6,8 @@ import type { InMsg, OutMsg } from './types';
 export interface IslandRect { x: number; y: number; w: number; h: number }
 
 interface Bridge {
-  onMessage(fn: (m: InMsg) => void): void;
+  /** resolves once messages can arrive: send requests whose answer you need after that */
+  onMessage(fn: (m: InMsg) => void): Promise<void>;
   send(m: OutMsg): void;
   interactive(on: boolean): void;
   rect(r: IslandRect): void;
@@ -35,7 +36,7 @@ function tauriBridge(): Bridge {
   return {
     onMessage(fn) {
       // listen first, then tell Rust to start delivering, so nothing is lost
-      event.then(e => e.listen<InMsg>('yobi', ev => fn(ev.payload))).then(() => call('ready'));
+      return event.then(e => e.listen<InMsg>('yobi', ev => fn(ev.payload))).then(() => call('ready')).then(() => {});
     },
     send: m => void call('send', { msg: m }),
     interactive: on => void call('interactive', { on }),
@@ -80,7 +81,7 @@ function mockBridge(): MockBridge {
     display: pref => void (b.screen = pref),
     displays: async () => [{ id: '1', n: 1, w: 1920, h: 1080, scale: 1.25, primary: true }, { id: '2', n: 2, w: 2560, h: 1440, scale: 1, primary: false }],
     onFileDrop: fn => void drops.push(fn),
-    onMessage: fn => void listeners.push(fn),
+    onMessage: async fn => void listeners.push(fn),
     deliver: m => listeners.forEach(fn => fn(m)),
     send: m => void b.sent.push(m),
     interactive: () => {},

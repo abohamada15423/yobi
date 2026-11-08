@@ -40,7 +40,7 @@ from vision_agent import (
     describe_demo,
     describe_screen,
 )
-from system_control import match_system_command
+from system_control import match_system_command, pick_processes
 from ui import DynamicIsland
 from context_memory import ContextMemory
 from command_chainer import split_compound_command
@@ -344,7 +344,7 @@ class GeminiClient:
     OPENAI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
     NATIVE_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
 
-    def __init__(self, gemini_key: str, groq_stt_client=None, default_model: str = "gemini-3.8-flash"):
+    def __init__(self, gemini_key: str, groq_stt_client=None, default_model: str = "gemini-3.5-flash"):
         self.api_key = (gemini_key or "").strip()
         self._groq_stt = groq_stt_client
         self.default_model = default_model
@@ -426,9 +426,9 @@ class GeminiClient:
         return _AttrObj(choices=[_AttrObj(message=_AttrObj(content=text, tool_calls=[]))])
 
     FALLBACK_MODELS = [
-        "gemini-3.8-flash",
-        "gemini-3.5-flash",
+        "gemini-3.5-flash",          # gemini-3.8-flash hung for 60 s in testing (2026-11-08): last
         "gemini-3.5-flash-lite",
+        "gemini-3.8-flash",
         "gemini-2.0-flash",
         "gemini-2.5-flash-lite",
         "gemini-2.0-flash-lite",
@@ -665,9 +665,9 @@ _groq_stt_only = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 if GEMINI_API_KEY:
     groq_client = GeminiClient(gemini_key=GEMINI_API_KEY, groq_stt_client=_groq_stt_only)
     _MODEL_CANDIDATES = [
-        "gemini-3.8-flash",
-        "gemini-3.5-flash",
+        "gemini-3.5-flash",          # gemini-3.8-flash hung for 60 s in testing (2026-11-08): last
         "gemini-3.5-flash-lite",
+        "gemini-3.8-flash",
         "gemini-2.0-flash",
         "gemini-2.5-flash-lite",
         "gemini-2.5-flash",
@@ -1115,7 +1115,7 @@ class DesktopAgent:
 
         try:
             res = self.resolve(process)
-            if res.best is not None:
+            if res.best is not None and res.status == "ok":   # only a name the resolver is sure of
                 disp = res.best.display.lower().strip()
                 candidates.add(disp)
                 if disp in _PROCESS_ALIASES:
@@ -1130,18 +1130,28 @@ class DesktopAgent:
         except Exception:
             pass
 
-        count = 0
+        procs = []
         for proc in psutil.process_iter(["name"]):
             try:
                 pname = (proc.info["name"] or "").lower().replace(".exe", "")
-                if not pname:
-                    continue
-                if any(c == pname or (len(c) >= 4 and c in pname) for c in candidates):
-                    proc.kill()
-                    count += 1
+                if pname:
+                    procs.append((proc, pname))
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 pass
-        return "تم الإغلاق" if count > 0 else "البرنامج مش شغال"
+        targets = pick_processes(procs, candidates)
+        # ask nicely first (the app can save), force only what's still running after 3 s
+        for proc in targets:
+            try:
+                proc.terminate()
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+        _, alive = psutil.wait_procs(targets, timeout=3)
+        for proc in alive:
+            try:
+                proc.kill()
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+        return "تم الإغلاق" if targets else "البرنامج مش شغال"
 
 
 # ==========================================
@@ -1264,6 +1274,19 @@ def voice_loop(island, agent, known_targets, listening_enabled):
 
     context = ContextMemory()
     addressed = AddressedClassifier(llm_client=groq_client, llm_model=BEST_MODEL)
+
+    # Yobi just asked something (buttons, or a reply ending in "؟"): a short answer is meant for Yobi
+    def _marks_question(name):
+        orig = getattr(island, name)
+
+        def wrapped(*a, **k):
+            text = str(a[0] if a else k.get("question") or k.get("text") or "")
+            if name == "ask" or text.rstrip().endswith(("؟", "?")):
+                addressed.mark_yobi_asked()
+            return orig(*a, **k)
+        setattr(island, name, wrapped)
+    for _name in ("ask", "say"):
+        _marks_question(_name)
     chat_engine = ChatEngine(groq_client, BEST_MODEL)
     learner = SelfLearner()
     chat_mode_active = False
@@ -1496,6 +1519,7 @@ def voice_loop(island, agent, known_targets, listening_enabled):
             print_ar(f"⚠️ dataset recorder: {e}")
 
     def _commit_learning(phrase, target, action):
+        global LAST_LEARNED_KEY
         recorder.label(phrase, "correct", target)
         learner.record_success(phrase, target, action)
         key = (phrase or "").lower().strip()
@@ -1506,6 +1530,7 @@ def voice_loop(island, agent, known_targets, listening_enabled):
             suggestions.record_usage(target)
             if vocab is not None:
                 vocab.bump(target)
+        LAST_LEARNED_KEY = key                    # so "انسى ده" knows what to forget
         print_ar(f"📚 اتعلمت: '{phrase}' → {target}")
 
     def _forget_learning(phrase):
@@ -1842,10 +1867,13 @@ def voice_loop(island, agent, known_targets, listening_enabled):
 
         # 6. Forget last learned
         if any(p in command for p in forget_phrases):
-            if LAST_LEARNED_KEY and LAST_LEARNED_KEY in LEARNED_COMMANDS:
-                LEARNED_COMMANDS.pop(LAST_LEARNED_KEY)
-                save_learned_commands(LEARNED_COMMANDS)
+            # still waiting to be learned (the guard's delay): cancel it; else forget the last thing learned
+            forgot = guard.veto_latest("قلت انسى ده")
+            if not forgot and LAST_LEARNED_KEY:
+                _forget_learning(LAST_LEARNED_KEY)        # both the learner and LEARNED_COMMANDS
                 LAST_LEARNED_KEY = None
+                forgot = True
+            if forgot:
                 island.after(0, lambda: island.set_state("success", "تم النسيان 🗑️"))
                 play_success()
                 speak("تم النسيان")

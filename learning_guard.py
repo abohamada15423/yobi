@@ -84,6 +84,10 @@ class LearningGuard:
             return False
         return self._veto_latest("المستخدم قال لا")
 
+    def veto_latest(self, why="اتلغى"):
+        """Cancel the most recent learning that's still waiting ("انسى ده" right after a command)."""
+        return self._veto_latest(why)
+
     def on_close(self, target):
         """المستخدم قفل حاجة → لو هي اللي لسه فاتحينها، يبقى كانت غلط."""
         tl = (target or "").lower().strip()

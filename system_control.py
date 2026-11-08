@@ -314,3 +314,13 @@ def match_system_command(command):
         if any(p in command_l for p in phrases):
             return fn, description, needs_confirm
     return None
+
+
+def pick_processes(procs, candidates):
+    """Which running processes "اقفل X" means: exact names first; only if none, a name that
+    contains one of the candidates (4+ letters), so "اقفل chrome" closes chrome.exe and not
+    every process that happens to have "chrome" in its name."""
+    exact = [p for p, name in procs if name in candidates]
+    if exact:
+        return exact
+    return [p for p, name in procs if any(len(c) >= 4 and c in name for c in candidates)]

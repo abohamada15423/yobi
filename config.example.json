@@ -239,7 +239,7 @@
     "music_every_hours": 5,
     "series_every_hours": 20
   },
-  "brain_model": "gemini-3.8-flash",
+  "brain_model": "gemini-3.5-flash",
   "island": {
     "theme": "night"
   },

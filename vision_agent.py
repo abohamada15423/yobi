@@ -28,11 +28,11 @@ import pyautogui
 pyautogui.FAILSAFE = True
 pyautogui.PAUSE = 0.3
 
-VISION_MODEL = "gemini-3.8-flash"
+VISION_MODEL = "gemini-3.5-flash"
 _VISION_FALLBACKS = [
-    "gemini-3.8-flash",
     "gemini-3.5-flash",
     "gemini-3.5-flash-lite",
+    "gemini-3.8-flash",
     "gemini-2.5-flash",
     "meta-llama/llama-4-maverick-17b-128e-instruct",
     "meta-llama/llama-4-scout-17b-16e-instruct",

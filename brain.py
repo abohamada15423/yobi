@@ -53,10 +53,10 @@ _NEEDS_LLM_PREFIXES = (
 
 
 class Brain:
-    def __init__(self, client, model="gemini-3.8-flash", tools=None, memory=None,
+    def __init__(self, client, model="gemini-3.5-flash", tools=None, memory=None,
                  fallback_engine=None, temperature=0.6, max_tokens=500, max_tool_rounds=4):
         self._client = client
-        self.model = model or "gemini-3.8-flash"
+        self.model = model or "gemini-3.5-flash"
         self._tools = tools
         self._memory = memory or ChatMemory()
         self._fallback = fallback_engine

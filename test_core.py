@@ -20,6 +20,8 @@ from addressing import AddressedClassifier
 from scheduler import TaskScheduler
 import target_resolver as tr
 from smart_open import exe_matches
+from system_control import pick_processes
+from learning_guard import LearningGuard
 
 
 class MockAgent:
@@ -98,12 +100,14 @@ def test_target_resolver():
     )
     for phrase, expected in [
         ("افتح يورو", "euro truck simulator 2"),
-        ("افتح júru", "euro truck simulator 2"),
         ("شغل اسيتو", "assetto corsa competizione"),
         ("افتح excel", "excel"),
     ]:
         r = tr.resolve(cat, phrase, utterance=phrase)
         assert r.status == "ok" and r.best.display == expected, (phrase, r)
+    # a garbled name: Yobi asks "قصدك Euro Truck؟" instead of guessing (safer since v7)
+    r = tr.resolve(cat, "افتح júru", utterance="افتح júru")
+    assert r.status == "ask" and r.best.display == "euro truck simulator 2", r
 
     assert exe_matches("euro truck simulator 2", "C:/Games/eurotrucks2.exe") is True
     assert exe_matches("ساكه", "C:/Games/SACKE.exe") is False
@@ -119,6 +123,25 @@ def test_context_and_addressing():
     clf = AddressedClassifier(llm_client=None)
     assert clf.is_addressed("يا يوبي افتح ديسكورد") is True
     assert clf.is_addressed("الساعة كام دلوقتي") is True
+
+
+def test_closing_and_learning():
+    chrome, driver, notepad, riot = object(), object(), object(), object()
+    procs = [(chrome, "chrome"), (driver, "chromedriver"), (notepad, "notepad"), (riot, "riotclientservices")]
+    assert pick_processes(procs, {"chrome"}) == [chrome]          # the exact name, not chromedriver
+    assert pick_processes(procs, {"riot"}) == [riot]              # no exact name: a containing one
+    assert pick_processes(procs, {"zoom"}) == []
+    assert pick_processes(procs, {"pad"}) == []                   # too short to match inside a name
+
+    learned = []
+    g = LearningGuard(lambda *a: learned.append(a), delay=60, log=lambda *a: None, check_process=False)
+    g.propose("افتح الحاجة", "discord")
+    assert g.veto_latest() is True and g.pending() == [] and learned == []   # "انسى ده" in time
+    assert g.veto_latest() is False                                         # nothing left to cancel
+
+    clf = AddressedClassifier(llm_client=None)
+    clf.mark_yobi_asked()
+    assert clf.is_addressed("أيوه") is True                       # a short answer right after Yobi asked
 
 
 def test_scheduler():
@@ -159,6 +182,7 @@ def run_tests():
         ("alias_and_transliteration", test_alias_and_transliteration),
         ("target_resolver", test_target_resolver),
         ("context_and_addressing", test_context_and_addressing),
+        ("closing_and_learning", test_closing_and_learning),
         ("scheduler", test_scheduler),
         ("media_handler", test_media_handler),
     ]
@@ -178,7 +202,7 @@ def run_tests():
     if failures:
         print(f"\n{failures} test(s) failed.")
         sys.exit(1)
-    print("\nAll 9 core test suites passed 100%!")
+    print(f"\nAll {len(tests)} core test suites passed 100%!")
 
 
 if __name__ == "__main__":

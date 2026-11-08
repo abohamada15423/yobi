@@ -48,3 +48,6 @@ latency_log.csv
 
 # the upload server (its own project; has its admin password inside)
 import os.ini
+
+# run logs (they have your commands in them)
+*.log

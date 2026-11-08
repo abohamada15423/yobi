@@ -176,6 +176,8 @@ export const useIsland = create<IslandStore>((set) => ({
 /** What the compact island shows, by the same rules as the Electron island: focus, then music, then a download. */
 export type Compact = 'thin' | 'idle' | 'clock' | 'info' | 'focus' | 'music' | 'download';
 export const musicLive = (s: IslandStore) => s.prefs.music_tab !== false && s.media.has && !!s.media.playing && !s.media.front;
+/** the island as a strip on a side edge of the screen (Settings → Shortcut and screen), or null at the top */
+export const edgeOf = (s: IslandStore): 'left' | 'right' | null => (s.prefs.position === 'left' || s.prefs.position === 'right' ? s.prefs.position : null);
 export const hasDots = (s: IslandStore) => s.privacy.mic.length > 0 || s.privacy.cam.length > 0;
 export function compactView(s: IslandStore): Compact {
   if (s.focus.phase) return 'focus';

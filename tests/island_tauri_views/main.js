@@ -99,6 +99,57 @@ app.whenReady().then(async () => {
     w.destroy();
   }
 
+  // the island as a strip on a side edge (Settings → Island position), like Nova's vertical island
+  const SIDES = [
+    // name, side, messages, expected [w, h]
+    ['side_info', 'right', [INFO_STATS, INFO_WX, INFO_PRAYER], [56, 236]],
+    ['side_info_en', 'right', [{ t: 'island_settings', values: { lang: 'en' } }, INFO_STATS, INFO_WX, INFO_PRAYER], [56, 236]],
+    ['side_left_dots', 'left', [INFO_STATS, INFO_PRAYER, { t: 'privacy', mic: ['Discord'], cam: [] }], [56, 254]],
+    ['side_focus', 'right', [`{ t: 'focus', phase: 'focus', round: 1, total: 4, ends_at: ${soon} }`], [56, 84]],
+    ['side_music', 'right', [{ t: 'media', has: true, playing: true, front: false, art: ART }, { t: 'music_level', v: 0.6 }], [56, 84]],
+    ['side_download', 'left', [{ t: 'downloads', items: [{ id: '1', name: 'a.zip', bytes: 5e7, speed: 4.2e6 }] }], [56, 84]],
+    ['side_clock', 'right', [{ t: 'island_settings', values: { idle_info: false } }], [52, 50]],
+  ];
+  for (const [name, side, msgs, want] of SIDES) {
+    const w = await open('', 580, 640);
+    const run = c => w.webContents.executeJavaScript(c);
+    await run(`window.__yobi.deliver({ t: 'island_settings', values: { position: '${side}' } })`);
+    for (const m of msgs) await run(`window.__yobi.deliver(${typeof m === 'string' ? m : JSON.stringify(m)})`);
+    await sleep(900);
+    const got = await run(`(() => { const c = ${capsule}, r = c.getBoundingClientRect();
+      const out = [...c.querySelectorAll('b, span')].some(e => { const q = e.getBoundingClientRect(); return q.width > 0 && (q.left < r.left - 1 || q.right > r.right + 1 || q.top < r.top - 1 || q.bottom > r.bottom + 1); });
+      return { w: Math.round(r.width), h: Math.round(r.height), l: Math.round(r.left), r: Math.round(r.right), mid: Math.round((r.top + r.bottom) / 2), ww: innerWidth, wh: innerHeight, rect: window.__yobi.lastRect, sent: window.__yobi.side, text: c.innerText, out }; })()`);
+    const flush = side === 'right' ? got.r === got.ww : got.l === 0;
+    if (got.w !== want[0] || got.h !== want[1]) failures.push(`${name}: want ${want.join('x')}, got ${got.w}x${got.h}`);
+    else if (!flush || Math.abs(got.mid - got.wh / 2) > 1) failures.push(`${name}: should sit flush on the ${side} edge, centred: ${JSON.stringify(got)}`);
+    else if (!got.rect || got.rect.w !== want[0] || got.rect.h !== want[1] || got.rect.x !== (side === 'right' ? got.ww - want[0] : 0)) failures.push(`${name}: click area ${JSON.stringify(got.rect)}`);
+    else if (got.sent !== side) failures.push(`${name}: the window wasn't told to move to the ${side} edge (${got.sent})`);
+    else if (got.out) failures.push(`${name}: something spills out of the strip: ${JSON.stringify(got.text)}`);
+    const x = side === 'right' ? got.ww - 90 : 0;
+    fs.writeFileSync(path.join(OUT, `${name}.png`), (await w.webContents.capturePage({ x, y: 160, width: 90, height: 320 })).toPNG());
+    console.log('view', name, `${got.w}x${got.h}`, JSON.stringify(got.text));
+    w.destroy();
+  }
+  {
+    // on a side, the panel and Yobi's turn open from the edge, inward
+    const w = await open('', 580, 640);
+    const run = c => w.webContents.executeJavaScript(c);
+    await run(`window.__yobi.deliver({ t: 'island_settings', values: { position: 'right' } })`);
+    await run(`window.__yobi.deliver(${JSON.stringify(INFO_STATS)})`); await sleep(500);
+    await run(`${capsule}.dispatchEvent(new PointerEvent('pointerover', { bubbles: true }))`); await sleep(900);
+    const p = await run(`(() => { const r = ${capsule}.getBoundingClientRect(); return { open: window.__island.getState().panel.open, w: Math.round(r.width), r: Math.round(r.right), top: Math.round(r.top), bottom: Math.round(r.bottom), ww: innerWidth, wh: innerHeight }; })()`);
+    if (!p.open || p.w < 300 || p.r !== p.ww || p.top < 0 || p.bottom > p.wh) failures.push(`side panel: ${JSON.stringify(p)}`);
+    fs.writeFileSync(path.join(OUT, 'side_panel.png'), (await w.webContents.capturePage()).toPNG());
+    await run(`${capsule}.dispatchEvent(new PointerEvent('pointerout', { bubbles: true }))`);
+    await run(`window.__island.getState().setPanel?.({ open: false })`).catch(() => {});
+    await run(`window.__yobi.deliver({ t: 'say', state: 'info', text: 'تمام، فتحت ديسكورد' })`); await sleep(1500);
+    const t = await run(`(() => { const r = ${capsule}.getBoundingClientRect(); return { w: Math.round(r.width), r: Math.round(r.right), ww: innerWidth }; })()`);
+    if (t.w < 200 || t.r !== t.ww) failures.push(`side turn: ${JSON.stringify(t)}`);
+    fs.writeFileSync(path.join(OUT, 'side_turn.png'), (await w.webContents.capturePage({ x: t.ww - 400, y: 260, width: 400, height: 120 })).toPNG());
+    w.destroy();
+    console.log('side rules checked');
+  }
+
   // the morphs: clock → music → focus, and a celebration, caught mid-flight
   const mw = await open('', 580, 120);
   const mrun = c => mw.webContents.executeJavaScript(c);

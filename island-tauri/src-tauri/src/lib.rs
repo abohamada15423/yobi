@@ -39,6 +39,8 @@ struct Shared {
     before: Mutex<usize>,
     /// which screen the island sits on: "primary", "cursor", or a screen's number ("1", "2"…)
     display: Mutex<String>,
+    /// where on that screen: "top" (centred under the top edge), or a strip on the "right" / "left" edge
+    edge: Mutex<String>,
     /// the work area it was last placed on, so it only moves when that changes
     placed: Mutex<Option<(i32, i32, u32, u32)>>,
 }
@@ -228,7 +230,8 @@ fn target_monitor(window: &WebviewWindow, pref: &str) -> Option<tauri::Monitor> 
     window.primary_monitor().ok().flatten()
 }
 
-/// Top centre of the chosen screen's work area (off-screen for tests: YOBI_ISLAND_OFFSCREEN).
+/// Top centre of the chosen screen's work area, or the middle of its right or left edge
+/// (off-screen for tests: YOBI_ISLAND_OFFSCREEN).
 /// Moves only when that work area changes: a new choice, the mouse on another screen,
 /// a screen plugged in or out, the taskbar moved.
 fn place(window: &WebviewWindow, ctx: &Shared) {
@@ -247,7 +250,13 @@ fn place(window: &WebviewWindow, ctx: &Shared) {
     }
     *placed = Some(key);
     let width = (W * m.scale_factor()).round() as i32;
-    let at = PhysicalPosition::new(area.position.x + (area.size.width as i32 - width) / 2, area.position.y);
+    let height = (H * m.scale_factor()).round() as i32;
+    let (ax, ay, aw, ah) = (area.position.x, area.position.y, area.size.width as i32, area.size.height as i32);
+    let at = match ctx.edge.lock().unwrap().as_str() {
+        "right" => PhysicalPosition::new(ax + aw - width, ay + (ah - height) / 2),
+        "left" => PhysicalPosition::new(ax, ay + (ah - height) / 2),
+        _ => PhysicalPosition::new(ax + (aw - width) / 2, ay),
+    };
     // move first, then size (in that screen's scale), then settle the position
     let _ = window.set_position(at);
     let _ = window.set_size(LogicalSize::new(W, H));
@@ -258,6 +267,14 @@ fn place(window: &WebviewWindow, ctx: &Shared) {
 #[tauri::command]
 fn display(window: WebviewWindow, ctx: State<Ctx>, pref: String) {
     *ctx.display.lock().unwrap() = pref;
+    *ctx.placed.lock().unwrap() = None;
+    place(&window, &ctx);
+}
+
+/// The settings put the island at the top or on a side edge.
+#[tauri::command]
+fn edge(window: WebviewWindow, ctx: State<Ctx>, edge: String) {
+    *ctx.edge.lock().unwrap() = edge;
     *ctx.placed.lock().unwrap() = None;
     place(&window, &ctx);
 }
@@ -341,7 +358,7 @@ fn watch_cursor(app: AppHandle, ctx: Ctx) {
             let x = (cursor.x - pos.x as f64) / scale;
             let y = (cursor.y - pos.y as f64) / scale;
             let pad = 4.0;
-            let inside = x >= r.x - pad && x <= r.x + r.w + pad && y >= -2.0 && y <= r.y + r.h + pad;
+            let inside = x >= r.x - pad && x <= r.x + r.w + pad && y >= (if r.y > 0.0 { r.y - pad } else { -2.0 }) && y <= r.y + r.h + pad;
             if !inside {
                 since = None;
                 continue;
@@ -393,10 +410,11 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(ctx.clone())
-        .invoke_handler(tauri::generate_handler![send, ready, interactive, rect, focus, file_icon, drag_out, display, displays, open_settings])
+        .invoke_handler(tauri::generate_handler![send, ready, interactive, rect, focus, file_icon, drag_out, display, edge, displays, open_settings])
         .setup(move |app| {
             let window = app.get_webview_window("island").expect("island window");
             *ctx.display.lock().unwrap() = "primary".into();
+            *ctx.edge.lock().unwrap() = "top".into();
             place(&window, &ctx);
             window.set_always_on_top(true)?;
             set_ignore(&window, &ctx, true);

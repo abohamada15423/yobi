@@ -183,4 +183,5 @@ if (!IN_SETTINGS) bridge.onFileDrop(e => {
 // the screen the island sits on follows the settings
 useIsland.subscribe((s, p) => {
   if (!IN_SETTINGS && s.prefs.display !== p.prefs.display && typeof s.prefs.display === 'string') bridge.display(s.prefs.display);
+  if (!IN_SETTINGS && s.prefs.position !== p.prefs.position && typeof s.prefs.position === 'string') bridge.edge(s.prefs.position);
 });

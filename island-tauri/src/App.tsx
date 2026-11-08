@@ -2,7 +2,7 @@ import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import { useCallback, useEffect, useState } from 'react';
 import { Mic, Pause, PenLine, Play, SkipBack, SkipForward } from 'lucide-react';
 import { bridge } from './bridge';
-import { compactView, fsHidden, hasDots, stillPref, useIsland } from './store';
+import { compactView, edgeOf, fsHidden, hasDots, stillPref, useIsland } from './store';
 import { Capsule } from './components/Capsule';
 import { IconButton } from './components/IconButton';
 import { Meter } from './components/Meter';
@@ -63,6 +63,7 @@ function IslandApp() {
 function Island() {
   const view = useIsland(compactView);
   const dots = useIsland(hasDots);
+  const edge = useIsland(edgeOf);
   const hidden = useIsland(fsHidden);
   const turn = useIsland(s => s.state !== 'idle');
   const open = useIsland(s => s.panel.open);
@@ -85,10 +86,10 @@ function Island() {
   const onNotice = useCallback((w: number, h: number) => setNoticeSize(p => (p[0] === w && p[1] === h ? p : [w, h])), []);
   const onTurn = useCallback((w: number, h: number) => setTurnSize(p => (p[0] === w && p[1] === h ? p : [w, h])), []);
   const onPanel = useCallback((w: number, h: number) => setPanelSize(p => (p[0] === w && p[1] === h ? p : [w, h])), []);
-  const [w, h] = turn ? turnSize : hud ? HUD_SIZE : notice ? noticeSize : peek ? PEEK_SIZE : open ? panelSize : compactSize(view, dots);
+  const [w, h] = turn ? turnSize : hud ? HUD_SIZE : notice ? noticeSize : peek ? PEEK_SIZE : open ? panelSize : compactSize(view, dots, edge);
   const show = turn ? 'turn' : hud ? 'hud' : notice ? 'notice' : peek ? 'peek' : open ? 'panel' : 'compact';
   return (
-    <Capsule width={w} height={h} expanded={open || notice || (turn && h > 48)} hidden={hidden && !open}
+    <Capsule width={w} height={h} expanded={open || notice || (turn && h > 48)} hidden={hidden && !open} edge={edge}
              onPointerEnter={pointerEnter} onPointerLeave={pointerLeave}>
       <AnimatePresence initial={false} mode="popLayout">
         {show === 'turn' ? (
@@ -117,7 +118,7 @@ function Island() {
           </motion.div>
         )}
       </AnimatePresence>
-      <Celebrate />
+      {!edge && <Celebrate />}
     </Capsule>
   );
 }

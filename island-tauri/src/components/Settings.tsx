@@ -142,7 +142,7 @@ export function SettingsWindow() {
       moments: [...MOMENTS.flatMap(([, l, s]) => [l, s || '']), T('لما البطارية توصل', 'battery saver at')],
       prayer: [T('المدينة', 'City'), T('الطريقة', 'Method'), T('العصر', 'Asr'), T('نبّهني قبلها', 'Alert me before'), T('نبّهني بمواعيد الصلاة', 'Prayer time alerts'), T('خط العرض', 'Latitude'), T('خط الطول', 'Longitude')],
       focus: [T('التركيز', 'Focus'), T('الراحة', 'Break'), T('الراحة الطويلة', 'Long break')], remind: [T('فكّرني', 'Remind me'), T('كل', 'Every'), T('ساعات هادية', 'Quiet hours')], meet: ['iCal', T('الرابط', 'Link'), T('تقويم', 'Calendar')],
-      keys: [T('اختصار', 'Shortcut'), T('الشاشة', 'Screen'), T('شغّل يوبي لما أفتح الويندوز', 'Start Yobi with Windows')],
+      keys: [T('اختصار', 'Shortcut'), T('الشاشة', 'Screen'), T('مكان الجزيرة', 'Island position'), T('على جنب', 'side edge'), T('شغّل يوبي لما أفتح الويندوز', 'Start Yobi with Windows')],
     };
     return Object.fromEntries(SECTIONS.map(s => [s.id, match(s.title, ...ws[s.id])]));
   }, [q, S?.island.lang]);   // match only reads q; the words follow the language
@@ -287,6 +287,13 @@ export function SettingsWindow() {
               {screens.length > 1 && screens.map(d => (
                 <option key={d.id} value={d.id}>{`${T('شاشة', 'Screen')} ${d.n} (${d.w}×${d.h}${d.scale !== 1 ? `${T('، ', ', ')}${fmt.pct(d.scale * 100)}` : ''})${d.primary ? T(' — الرئيسية', ' — main') : ''}`}</option>
               ))}
+            </select>
+          </Row>
+          <Row label={T('مكان الجزيرة', 'Island position')} sub={T('على جنب: شريط طويل على حافة الشاشة، بيفتح لجوّه', 'On a side: a tall strip on the screen’s edge that opens inward')}>
+            <select className={field} aria-label={T('مكان الجزيرة', 'Island position')} value={String(S.island.position || 'top')} onChange={e => put('island.position', e.target.value)}>
+              <option value="top">{T('فوق في النص', 'Top centre')}</option>
+              <option value="right">{T('على الحافة اليمين', 'Right edge')}</option>
+              <option value="left">{T('على الحافة الشمال', 'Left edge')}</option>
             </select>
           </Row>
           <Row label={T('شغّل يوبي لما أفتح الويندوز', 'Start Yobi with Windows')} sub={T('لحسابك بس، ومن غير شباك أسود', 'For your account only, with no black window')}><Switch on={!!S.island.autostart} onChange={v => put('island.autostart', v)} label={T('شغّل يوبي مع الويندوز', 'Start Yobi with Windows')} /></Row>

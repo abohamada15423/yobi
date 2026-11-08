@@ -3,20 +3,26 @@
 import { AnimatePresence, motion, useReducedMotionConfig } from 'motion/react';
 import { Download, Music, Pause, Timer } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
-import { compactView, hasDots, useIsland, type Compact } from '../store';
+import { compactView, edgeOf, hasDots, useIsland, type Compact } from '../store';
 import { spring } from '../motion';
 import { useSongColor } from '../songColor';
 import { T, dir, fmt } from '../i18n';
-import { InfoRow } from './IdleInfo';
+import { InfoColumn, InfoRow } from './IdleInfo';
 
 /** each compact view's size; the privacy dots add a little room at the trailing edge */
 const SIZE: Record<Compact, [number, number]> = {
   thin: [64, 6], idle: [96, 28], clock: [112, 28], info: [360, 28], focus: [176, 32], music: [196, 32], download: [212, 32],
 };
+/** the same views as a strip on a side edge of the screen (Nova's vertical island): narrow and tall */
+const SIDE: Record<Compact, [number, number]> = {
+  thin: [6, 64], idle: [40, 40], clock: [52, 50], info: [56, 236], focus: [56, 84], music: [56, 84], download: [56, 84],
+};
 const DOTS_W = 18;
-export function compactSize(view: Compact, dots: boolean): [number, number] {
+export function compactSize(view: Compact, dots: boolean, edge: 'left' | 'right' | null = null): [number, number] {
+  const more = dots && view !== 'thin' ? DOTS_W : 0;
+  if (edge) { const [w, h] = SIDE[view]; return [w, h + more]; }
   const [w, h] = SIZE[view];
-  return [w + (dots && view !== 'thin' ? DOTS_W : 0), h];
+  return [w + more, h];
 }
 
 export const mmss = fmt.mmss;
@@ -29,9 +35,11 @@ export function useNow(ms: number) {
   return now;
 }
 
-function Clock() {
+/** short: without AM/PM, for the narrow side strip */
+function Clock({ short = false }: { short?: boolean }) {
   const now = useNow(10_000);
-  return <span className="w-full text-center font-display text-[12.5px] font-semibold tabular-nums">{fmt.clock(now)}</span>;
+  const t = fmt.clock(now);
+  return <span className="w-full text-center font-display text-[12.5px] font-semibold tabular-nums">{short ? t.replace(/\s?(AM|PM|ص|م)$/, '') : t}</span>;
 }
 
 function FocusLive() {
@@ -84,8 +92,17 @@ function MusicLive() {
   );
 }
 
-function DownloadLive() {
+function DownloadLive({ side = false }: { side?: boolean }) {
   const dl = useIsland(s => s.downloads);
+  if (side) {                                   // the narrow strip: the speed's number over its unit
+    const [n, ...unit] = fmt.speed(dl[0]?.speed ?? 0).split(' ');
+    return (
+      <>
+        <Download className="yobi-pulse size-4 text-accent" strokeWidth={2.2} />
+        <span className="flex flex-col text-[10.5px] leading-tight tabular-nums text-ink-2"><b className="text-[12px] text-ink">{n}</b>{unit.join(' ')}</span>
+      </>
+    );
+  }
   return (
     <>
       <span className="flex items-center gap-1">
@@ -99,11 +116,12 @@ function DownloadLive() {
 
 function Dots() {
   const { mic, cam } = useIsland(s => s.privacy);
+  const edge = useIsland(edgeOf);
   if (!mic.length && !cam.length) return null;
   const sep = T('، ', ', ');
   const who = [mic.length ? `${T('المايك', 'Microphone')}: ${mic.join(sep)}` : '', cam.length ? `${T('الكاميرا', 'Camera')}: ${cam.join(sep)}` : ''].filter(Boolean).join('\n');
   return (
-    <span className="absolute inset-y-0 end-2.5 flex items-center gap-1" title={who} role="img" aria-label={who}>
+    <span className={`absolute flex items-center gap-1 ${edge ? 'inset-x-0 bottom-2 justify-center' : 'inset-y-0 end-2.5'}`} title={who} role="img" aria-label={who}>
       {mic.length > 0 && <i className="size-1.5 rounded-pill bg-gold" />}
       {cam.length > 0 && <i className="size-1.5 rounded-pill bg-accent" />}
     </span>
@@ -138,6 +156,22 @@ const CONTENT: Record<Compact, () => ReactNode> = {
 export function CompactIsland() {
   const view = useIsland(compactView);
   const dots = useIsland(hasDots);
+  const edge = useIsland(edgeOf);
+  if (edge) return (
+    <div className="relative h-full" dir={dir()}>
+      <AnimatePresence initial={false}>
+        <motion.div key={view}
+          className="absolute inset-x-0 top-0 flex flex-col items-center justify-center gap-1.5 text-center"
+          style={{ bottom: dots ? DOTS_W : 0 }}
+          initial={{ opacity: 0, scale: 0.9, filter: 'blur(3px)' }}
+          animate={{ opacity: 1, scale: 1, filter: 'blur(0px)', transition: spring.content }}
+          exit={{ opacity: 0, scale: 0.95, filter: 'blur(3px)', transition: { duration: 0.12 } }}>
+          {view === 'info' ? <InfoColumn /> : view === 'clock' ? <Clock short /> : view === 'download' ? <DownloadLive side /> : CONTENT[view]()}
+        </motion.div>
+      </AnimatePresence>
+      {view !== 'thin' && <Dots />}
+    </div>
+  );
   return (
     <div className="relative h-full" dir={dir()}>
       <AnimatePresence initial={false}>

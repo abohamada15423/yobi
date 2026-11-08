@@ -22,6 +22,8 @@ interface Bridge {
   openSettings(): void;
   /** put the island on a screen: "primary", "cursor", or a screen's number */
   display(pref: string): void;
+  /** put the island at the top of the screen, or as a strip on its "right" / "left" edge */
+  edge(pos: string): void;
   /** the screens, for the settings */
   displays(): Promise<Screen[]>;
 }
@@ -46,6 +48,7 @@ function tauriBridge(): Bridge {
     dragOut: path => void call('drag_out', { path }),
     openSettings: () => void call('open_settings'),
     display: pref => void call('display', { pref }),
+    edge: pos => void call('edge', { edge: pos }),
     displays: () => core.then(c => c.invoke<Screen[]>('displays')).catch(() => []),
     onFileDrop(fn) {
       void import('@tauri-apps/api/webview').then(w => w.getCurrentWebview().onDragDropEvent(ev => {
@@ -62,7 +65,7 @@ export interface MockBridge extends Bridge {
   deliver(m: InMsg): void; sent: OutMsg[]; lastRect: IslandRect | null;
   /** tests: what was dragged out, and a way to drop files on the island */
   dragged: string[]; drop(type: 'enter' | 'drop' | 'leave', paths?: string[]): void;
-  settingsOpened: number; screen: string;
+  settingsOpened: number; screen: string; side: string;
 }
 
 function mockBridge(): MockBridge {
@@ -79,6 +82,8 @@ function mockBridge(): MockBridge {
     screen: '',
     openSettings: () => void b.settingsOpened++,
     display: pref => void (b.screen = pref),
+    side: '',
+    edge: pos => void (b.side = pos),
     displays: async () => [{ id: '1', n: 1, w: 1920, h: 1080, scale: 1.25, primary: true }, { id: '2', n: 2, w: 2560, h: 1440, scale: 1, primary: false }],
     onFileDrop: fn => void drops.push(fn),
     onMessage: async fn => void listeners.push(fn),

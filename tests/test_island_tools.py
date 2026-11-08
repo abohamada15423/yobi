@@ -102,6 +102,8 @@ class TestShelfAndPrivacy(unittest.TestCase):
     def test_english(self):
         self.assertEqual(it.clean_settings("island", {"lang": "en"}), {"lang": "en"})
         self.assertEqual(it.clean_settings("island", {"lang": "fr"}), {})
+        self.assertEqual(it.clean_settings("island", {"position": "left", "idle_info": False}), {"position": "left", "idle_info": False})
+        self.assertEqual(it.clean_settings("island", {"position": "bottom"}), {})
         try:
             it._ui["lang"] = "en"
             self.assertEqual(it.privacy_label("Microsoft.WindowsCamera_8wekyb3d8bbwe"), "Camera")

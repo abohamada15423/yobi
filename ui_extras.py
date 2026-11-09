@@ -442,7 +442,8 @@ class SettingsWindow(ctk.CTkToplevel):
     def _test_voice(self):
         try:
             from tts_engine import speak
-            speak("أهلاً بيك يا محمد! أنا يوبي، مساعدك الذكي بالشكل الجديد.")
+            name = str(self._cfg_data.get("user_name") or "").strip()
+            speak(f"أهلاً بيك{(' يا ' + name) if name else ''}! أنا يوبي، مساعدك الذكي بالشكل الجديد.")
         except Exception:
             pass
 

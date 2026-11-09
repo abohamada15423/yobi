@@ -316,6 +316,19 @@ class TestRecognizer(EngineCase):
         dur = len(audio.frame_data) / 2 / 16000
         self.assertGreater(dur, 0.8)         # the command that started BEFORE listen() was kept
 
+    def test_wake_by_key_only(self):
+        det = wake_word.WakeWordDetector("fake", threshold=0.5, patience=2, log=lambda m: None)
+        rec = self.make(wake=det)
+        det.pause(True)                       # Settings → wake: key
+        fake_sd.MIC["source"] = Scenario([(0.1, 0.9, "wake"), (0.9, 1.6, "speech")])
+        self.assertFalse(rec.wait_for_key(timeout=1.8))   # saying "يا يوبي" does nothing
+        self.assertFalse(det.event.is_set())
+        self.assertIsNone(rec.pop_wake_candidate())        # and nothing is sent to Whisper
+        self.assertLess(rec._frames.qsize(), 30)          # old audio doesn't pile up
+        threading.Timer(0.2, rec._on_hotkey).start()
+        self.assertTrue(rec.wait_for_key(timeout=1.0))
+        self.assertFalse(rec.hotkey_event.is_set())
+
     def test_stale_wake_event_ignored(self):
         det = wake_word.WakeWordDetector("fake", log=lambda m: None)
         det.event.set(); det.last_time = time.time() - 30

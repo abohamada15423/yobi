@@ -104,6 +104,9 @@ class TestShelfAndPrivacy(unittest.TestCase):
         self.assertEqual(it.clean_settings("island", {"lang": "fr"}), {})
         self.assertEqual(it.clean_settings("island", {"position": "left", "idle_info": False}), {"position": "left", "idle_info": False})
         self.assertEqual(it.clean_settings("island", {"position": "bottom"}), {})
+        self.assertEqual(it.clean_settings("island", {"wake": "key"}), {"wake": "key"})
+        self.assertEqual(it.clean_settings("island", {"wake": "never"}), {})
+        self.assertEqual(it.ISLAND_DEFAULTS["wake"], "voice")
         try:
             it._ui["lang"] = "en"
             self.assertEqual(it.privacy_label("Microsoft.WindowsCamera_8wekyb3d8bbwe"), "Camera")

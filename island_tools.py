@@ -36,7 +36,7 @@ ISLAND_DEFAULTS = {
     "radio_pause_prayer": True,
     "battery_saver_at": 20, "radio_volume": 70, "radio_station": "", "pinned_apps": [],
     # polish
-    "shortcut": "Ctrl+Alt+I", "display": "primary", "position": "top", "idle_clock": True, "idle_info": True, "autostart": False,
+    "shortcut": "Ctrl+Alt+I", "display": "primary", "position": "top", "wake": "voice", "idle_clock": True, "idle_info": True, "autostart": False,
 }
 SHORTCUTS = ("Ctrl+Alt+I", "Ctrl+Alt+Space", "Ctrl+Shift+Space", "Alt+Shift+Y", "")
 ISLAND_RANGES = {"battery_saver_at": (10, 100), "radio_volume": (0, 100)}
@@ -96,6 +96,8 @@ def clean_settings(section, patch):
                     out[k] = v
             elif k == "position" and v in ("top", "right", "left"):
                 out[k] = v
+            elif k == "wake" and v in ("voice", "key"):      # "key": only the hotkey wakes Yobi
+                out[k] = v
             elif k == "shortcut" and v in SHORTCUTS:
                 out[k] = v
             elif k == "display" and isinstance(v, str) and (v in ("primary", "cursor") or re.fullmatch(r"[0-9]{1,12}", v)):
@@ -130,19 +132,23 @@ def clean_settings(section, patch):
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
 
-def autostart_command():
-    """pythonw (no console window) running agent.py."""
+def autostart_command(legacy=False):
+    """pythonw (no console window) running launcher.pyw (log file, one Yobi at a time),
+    or agent.py itself on an older setup without the launcher."""
     exe = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
     if not os.path.isfile(exe):
         exe = sys.executable
-    return f'"{exe}" "{os.path.join(_HERE, "agent.py")}"'
+    launcher = os.path.join(_HERE, "launcher.pyw")
+    if legacy or not os.path.isfile(launcher):
+        return f'"{exe}" "{os.path.join(_HERE, "agent.py")}"'
+    return f'"{exe}" -s -E "{launcher}"'
 
 
 def autostart_on():
     try:
         import winreg
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY) as k:
-            return winreg.QueryValueEx(k, "Yobi")[0] == autostart_command()
+            return winreg.QueryValueEx(k, "Yobi")[0] in (autostart_command(), autostart_command(legacy=True))
     except OSError:
         return False
 

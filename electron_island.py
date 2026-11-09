@@ -65,6 +65,7 @@ def find_tauri():
     """The Tauri island (island-tauri/): YOBI_TAURI, then its release and debug builds."""
     target = os.path.join(YOBI_HOME, "tauri-target")
     for c in (os.environ.get("YOBI_TAURI"),
+              os.path.join(_HERE, "bin", "yobi-island.exe"),      # the friends' build (packaging/)
               os.path.join(target, "release", "yobi-island.exe"),
               os.path.join(target, "debug", "yobi-island.exe")):
         if c and os.path.isfile(c):
@@ -105,7 +106,7 @@ class ElectronIsland:
             exe = find_tauri()
             if not exe:
                 raise RuntimeError("yobi-island.exe مش موجود (اعمل build لـ island-tauri)")
-            args, cwd = [exe], TAURI_DIR
+            args, cwd = [exe], TAURI_DIR if os.path.isdir(TAURI_DIR) else os.path.dirname(exe)
         else:
             exe = electron_exe or find_electron()
             if not exe:

@@ -20,11 +20,14 @@ ui_prefs.json
 vocab.json
 .yobi_runtime.json
 shelf.json
+session_summaries.json
+logs/
 
 # models trained on your voice and commands (models/README.md says how to make them)
 models/*.onnx
 models/*.joblib
 models/intent_model.json
+models/local_brain.joblib
 
 # caches Yobi rebuilds by itself
 installed_apps_cache.json

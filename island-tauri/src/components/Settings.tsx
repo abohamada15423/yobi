@@ -142,7 +142,7 @@ export function SettingsWindow() {
       moments: [...MOMENTS.flatMap(([, l, s]) => [l, s || '']), T('لما البطارية توصل', 'battery saver at')],
       prayer: [T('المدينة', 'City'), T('الطريقة', 'Method'), T('العصر', 'Asr'), T('نبّهني قبلها', 'Alert me before'), T('نبّهني بمواعيد الصلاة', 'Prayer time alerts'), T('خط العرض', 'Latitude'), T('خط الطول', 'Longitude')],
       focus: [T('التركيز', 'Focus'), T('الراحة', 'Break'), T('الراحة الطويلة', 'Long break')], remind: [T('فكّرني', 'Remind me'), T('كل', 'Every'), T('ساعات هادية', 'Quiet hours')], meet: ['iCal', T('الرابط', 'Link'), T('تقويم', 'Calendar')],
-      keys: [T('اختصار', 'Shortcut'), T('الشاشة', 'Screen'), T('مكان الجزيرة', 'Island position'), T('على جنب', 'side edge'), T('شغّل يوبي لما أفتح الويندوز', 'Start Yobi with Windows')],
+      keys: [T('تنده على يوبي إزاي', 'Wake Yobi with'), T('النداء', 'wake word'), T('الزرار بس', 'Key only'), T('اختصار', 'Shortcut'),T('الشاشة', 'Screen'), T('مكان الجزيرة', 'Island position'), T('على جنب', 'side edge'), T('شغّل يوبي لما أفتح الويندوز', 'Start Yobi with Windows')],
     };
     return Object.fromEntries(SECTIONS.map(s => [s.id, match(s.title, ...ws[s.id])]));
   }, [q, S?.island.lang]);   // match only reads q; the words follow the language
@@ -275,6 +275,12 @@ export function SettingsWindow() {
     keys: (
       <>
         <Group>
+          <Row label={T('تنده على يوبي إزاي', 'Wake Yobi with')} sub={T('بالزرار بس: مفيش حاجة بتسمعك وهو نايم، وبيوفّر ذاكرة كارت الشاشة', 'Key only: nothing listens while Yobi sleeps, and it saves graphics memory')}>
+            <select className={field} aria-label={T('تنده على يوبي إزاي', 'Wake Yobi with')} value={String(S.island.wake || 'voice')} onChange={e => put('island.wake', e.target.value)}>
+              <option value="voice">{T('الصوت «يا يوبي» أو الزرار', 'Voice “Ya Yobi” or the key')}</option>
+              <option value="key">{T('الزرار بس (Ctrl + Alt + Y)', 'Key only (Ctrl + Alt + Y)')}</option>
+            </select>
+          </Row>
           <Row label={T('اختصار فتح الجزيرة', 'Shortcut to open the island')}>
             <select className={field} aria-label={T('اختصار فتح الجزيرة', 'Shortcut to open the island')} value={String(S.island.shortcut ?? '')} onChange={e => put('island.shortcut', e.target.value)} dir="ltr">
               {SHORTCUTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}

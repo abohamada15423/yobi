@@ -646,6 +646,19 @@ class GeminiClient:
         return _AttrObj(text=text, segments=[])
 
 
+# First run on a new PC (no key at all yet): ask for the keys in a small window instead of stopping.
+if not (any(_scan_env_file()) or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        or os.environ.get("GROQ_API_KEY") or os.environ.get("YOBI_NO_KEY")):
+    try:
+        from first_run import ask_keys
+        if ask_keys(_ENV_FILE) is None:
+            print_ar("👋 مفيش مفتاح — يوبي مش هيشتغل من غيره")
+            sys.exit(0)
+    except SystemExit:
+        raise
+    except Exception as _e:
+        print_ar(f"⚠️ شاشة المفاتيح: {_e}")
+
 _env_gemini, _env_groq = _scan_env_file()
 _raw_gemini_key = (
     _env_gemini
@@ -689,9 +702,11 @@ elif _groq_stt_only is not None:
         "openai/gpt-oss-20b",
     ]
 else:
-    raise RuntimeError(
-        "لازم تحط GEMINI_API_KEY في ملف .env (من https://aistudio.google.com/apikey)"
-    )
+    # no key at all (a friend chose "continue without a key"): everyday commands only, understood
+    # on this PC by local_brain and heard by the local Whisper; chat and questions need Gemini
+    print_ar("🔌 مفيش مفتاح — يوبي شغال أوامر بس بالموديل المحلي (الدردشة محتاجة مفتاح Gemini)")
+    groq_client = None
+    _MODEL_CANDIDATES = []
 
 _RUNTIME_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".yobi_runtime.json")
 
@@ -700,6 +715,8 @@ def _pick_working_model():
     forced = os.environ.get("YOBI_MODEL")
     if forced:
         return forced
+    if groq_client is None:
+        return "local"
     try:
         with open(_RUNTIME_CACHE, "r", encoding="utf-8") as f:
             cached = json.load(f)
@@ -764,6 +781,9 @@ if platform.system() == "Windows":
 
 CURRENT_OS = platform.system().lower()
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+if not os.path.exists(CONFIG_PATH):           # a new PC: start from the shared defaults
+    import shutil
+    shutil.copyfile(os.path.join(os.path.dirname(CONFIG_PATH), "config.example.json"), CONFIG_PATH)
 with open(CONFIG_PATH, "r", encoding="utf-8") as f:
     CONFIG = json.load(f)
 
@@ -872,7 +892,7 @@ def transcribe_local(audio, lang, model, initial_prompt=None):
 def transcribe_groq(audio, prompt_text="", lang="ar"):
     if _STT is not None:
         return _STT.transcribe(audio, prompt=prompt_text, lang=lang)
-    if _audio_is_silent(audio):
+    if _audio_is_silent(audio) or groq_client is None:        # no key: only the local Whisper hears
         return ""
     try:
         wav_bytes = audio.get_wav_data()
@@ -928,6 +948,8 @@ def detect_intent(text):
 
 
 def parse_command_llm(command, known_targets):
+    if groq_client is None:
+        return None, None
     try:
         prompt = f"""You are 'Yobi'. Convert command to JSON. Intents: "open", "close", "install", "unknown".
         Rules: "افتح" -> open, "اقفل" -> close.
@@ -1185,6 +1207,12 @@ def voice_loop(island, agent, known_targets, listening_enabled):
             agc=H["agc"], input_device=H["input_device"], output_device=H["output_device"],
             extra_delay_ms=H["aec_extra_delay_ms"], log=print_ar)
 
+    def _wake_by_key():
+        """Settings → wake: "key" = only the hotkey or the island wakes Yobi, no model listens."""
+        tools = getattr(island, "_tools", None)
+        cfg = tools.cfg if tools is not None else (CONFIG.get("island") or {})
+        return cfg.get("wake") == "key"
+
     wake_detector = None
     if WakeWordDetector is not None and H["wake_model"]:
         try:
@@ -1194,7 +1222,7 @@ def voice_loop(island, agent, known_targets, listening_enabled):
         except Exception as e:
             print_ar(f"ℹ️ النداء offline مش شغال ({str(e)[:90]}) — هستخدم Whisper للنداء")
             wake_detector = None
-    if wake_detector is None:
+    if wake_detector is None and not _wake_by_key():
         threading.Thread(target=wake_model.get, daemon=True).start()
 
     vocab = None
@@ -1450,6 +1478,8 @@ def voice_loop(island, agent, known_targets, listening_enabled):
             companion = None
 
     def _barge_in_check(audio):
+        if _wake_by_key():                      # the hotkey interrupts; no Whisper listens
+            return False
         t = transcribe_local(audio, "ar", wake_model, initial_prompt="يا يوبي")
         hit = _has_wake(t)
         if hit:
@@ -1580,13 +1610,35 @@ def voice_loop(island, agent, known_targets, listening_enabled):
         on_opened=_on_tool_opened,
         on_action=lambda d: chat_engine.set_last_action(d),
     )
+    # the local model: commands with no key or no internet. Trained on this PC's programs, games
+    # and sites (and what Yobi learned here) in the background; cached, so later starts are instant
+    local_holder = {}
+
+    def _train_local():
+        try:
+            import local_brain
+            local_holder["lb"] = local_brain.for_catalog(agent.catalog, log=print_ar)
+        except Exception as e:
+            local_holder.setdefault("lb", False)      # failed (not "still training"): don't wait for it
+            print_ar(f"⚠️ الموديل المحلي: {e}")
+
+    threading.Thread(target=_train_local, name="local-brain", daemon=True).start()
     brain = Brain(groq_client, CONFIG.get("brain_model") or BEST_MODEL, tools,
-                  fallback_engine=chat_engine)
-    print_ar(f"🧠 العقل الجديد شغال على: {brain.model}")
+                  fallback_engine=chat_engine, local=lambda: local_holder.get("lb"))
+    print_ar(f"🧠 العقل الجديد شغال على: {brain.model}" if groq_client is not None
+             else "🧠 العقل: الموديل المحلي (أوامر بس، من غير مفتاح)")
 
     agent.chat_engine = brain
     agent.context = context
     agent.client = groq_client
+
+    def _needs_key():
+        """No key: seeing the screen and learning tasks need Gemini — say so instead of failing."""
+        if groq_client is not None:
+            return False
+        from brain import NEEDS_KEY
+        island.after(0, lambda: island.say(NEEDS_KEY, state="info"))
+        return True
 
     def _do_chat(user_text):
         nonlocal chat_mode_active
@@ -1809,6 +1861,7 @@ def voice_loop(island, agent, known_targets, listening_enabled):
                 + list(agent.installed_apps.keys())
                 + list(agent.games.keys())
             )
+            threading.Thread(target=_train_local, name="local-brain", daemon=True).start()   # the new apps too
             scan_msg = f"فحصت جهازك! لقيت {len(agent.games)} لعبة و {len(agent.installed_apps)} برنامج ✅"
             island.after(0, lambda m=scan_msg: island.set_state("success", m))
             play_success()
@@ -1855,6 +1908,8 @@ def voice_loop(island, agent, known_targets, listening_enabled):
 
         # 5. Learn task
         if any(p in command for p in learn_task_phrases):
+            if _needs_key():
+                return
             island.after(0, lambda: island.set_state("info", "قول اسم المهمة"))
             with mic as source:
                 name_audio = recognizer.listen(source, timeout=6, phrase_time_limit=5)
@@ -2013,6 +2068,8 @@ def voice_loop(island, agent, known_targets, listening_enabled):
         # 12. Vision tasks
         mt = find_matching_task(command, TASKS)
         if mt:
+            if _needs_key():
+                return
             goal = TASKS[mt]["description"]
             island.after(0, lambda t=mt: island.set_state("thinking", f"بنفذ: {t}"))
             ok, reason = run_task_live(
@@ -2031,6 +2088,8 @@ def voice_loop(island, agent, known_targets, listening_enabled):
             "describe screen", "read screen", "اقرا الشاشة",
         ]
         if is_question(command) and any(p in command.lower() for p in screen_phrases):
+            if _needs_key():
+                return
             island.after(0, lambda: island.set_state("thinking", "بشوف الشاشة... 👁️"))
             desc = describe_screen(groq_client)
             island.after(0, lambda d=desc: island.set_state("info", d))
@@ -2351,6 +2410,16 @@ def voice_loop(island, agent, known_targets, listening_enabled):
         try:
             if not listening_enabled.is_set():
                 time.sleep(0.2)
+                continue
+
+            key_only = _wake_by_key() and hasattr(recognizer, "wait_for_key")
+            if wake_detector is not None and wake_detector._paused != key_only:
+                wake_detector.pause(key_only)
+                print_ar("⌨️ النداء بالزرار بس — مفيش موديل بيسمع" if key_only else "👂 النداء بالصوت رجع")
+            if key_only:
+                if recognizer.wait_for_key(timeout=1.0):
+                    print_ar("⌨️ اتنده بالكيبورد")
+                    _conversation()
                 continue
 
             if recognizer.has_wake_model:

@@ -4,7 +4,7 @@
 groq>=0.11
 faster-whisper>=1.0
 SpeechRecognition>=3.10      # only used for AudioData now (no PyAudio needed)
-edge-tts>=6.1
+edge-tts>=7.3.1                # 7.2.x gets 403 from Microsoft since Nov 2026
 pygame>=2.5
 python-dotenv>=1.0
 

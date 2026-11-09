@@ -189,6 +189,19 @@ class VADRecognizer:
             self._keep_from = t_hit + 0.12
             return True
 
+    def wait_for_key(self, timeout=1.0):
+        """Wake by key only (Settings → wake: key): no model listens while Yobi
+        sleeps, old audio is just dropped. True when the hotkey (or the island) was pressed."""
+        end = time.time() + timeout
+        while time.time() < end:
+            if self.hotkey_event.wait(0.05):
+                self.hotkey_event.clear()
+                self._idle_voiced.clear()
+                self._wake_candidate = None
+                return True
+            self._drop_stale()
+        return False
+
     def _scan_idle_speech(self):
         """Drain old frames while watching for a short spoken wake phrase."""
         if self._is_speaking():

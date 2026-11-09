@@ -11,6 +11,7 @@ second LLM round-trip when action tools return a ready Arabic confirmation
 import json
 import re
 import threading
+import time
 
 from chat_memory import ChatMemory
 
@@ -46,6 +47,23 @@ _DIRECT_ACTION_TOOLS = {
     "play_media", "web_search", "set_reminder", "schedule_command", "pc_command",
 }
 
+NEEDS_KEY = "ده محتاج مفتاح Gemini المجاني. ضيفه من قايمة ابدأ ← Yobi - API keys"
+NOT_READY = "ثانية واحدة، لسه بجهّز نفسي. قولها تاني كمان شوية"
+
+
+def _plain(result):
+    """A tool's result as something to say: "ASK: تقصد X؟" → "تقصد X؟", "CANCELLED: …" → "تمام، لغيت"."""
+    r = str(result or "").strip()
+    if r.startswith("CANCELLED"):
+        return "تمام، لغيت"
+    if r.startswith("UNKNOWN_COMMAND"):
+        return "مش عارف أعمل ده"
+    for pre in ("ASK:", "NOT_FOUND:", "SEARCHED:", "FAILED:"):
+        if r.startswith(pre):
+            return r[len(pre):].strip()
+    return r
+
+
 _NEEDS_LLM_PREFIXES = (
     "NOT_FOUND", "ASK:", "SEARCHED:", "CANCELLED:",
     "UNKNOWN_COMMAND", "FAILED", "arguments غلط", "فشل:", "tool ",
@@ -54,8 +72,12 @@ _NEEDS_LLM_PREFIXES = (
 
 class Brain:
     def __init__(self, client, model="gemini-3.5-flash", tools=None, memory=None,
-                 fallback_engine=None, temperature=0.6, max_tokens=500, max_tool_rounds=4):
+                 fallback_engine=None, temperature=0.6, max_tokens=500, max_tool_rounds=4, local=None):
         self._client = client
+        # local_brain.LocalBrain (or a function returning it once it's trained): runs the
+        # everyday commands with no key (client None) or when Gemini can't be reached
+        self._local = local
+        self._local_wait = 15          # seconds to wait for it when a command comes while it still trains
         self.model = model or "gemini-3.5-flash"
         self._tools = tools
         self._memory = memory or ChatMemory()
@@ -87,6 +109,8 @@ class Brain:
             if hasattr(self._tools, "current_utterance"):
                 self._tools.current_utterance = user_text
                 self._tools.current_stt_low = bool(stt_low)
+            if self._client is None:
+                return self._run_local(user_text, on_sentence, NEEDS_KEY)
             if not self._tools_supported and self._fallback:
                 return self._run_fallback(user_text, on_sentence, extra_context)
             try:
@@ -99,11 +123,42 @@ class Brain:
                     return self._run_fallback(user_text, on_sentence, extra_context)
                 raise
             except Exception as e:
-                msg = "معلش، حصلت مشكلة في الاتصال"
                 print(f"⚠️ Brain error: {e}")
+                if not self.last_actions:          # nothing ran yet: the local model can still do it
+                    return self._run_local(user_text, on_sentence, "معلش، حصلت مشكلة في الاتصال")
+                msg = "معلش، حصلت مشكلة في الاتصال"
                 if on_sentence:
                     on_sentence(msg)
                 return msg
+
+    def _run_local(self, user_text, on_sentence, otherwise):
+        """The local model picks the tool; the same YobiTools run it. `otherwise` is said when it
+        isn't a command it knows (chat, questions) or it isn't sure."""
+        lb = self._local() if callable(self._local) else self._local
+        # None from the function = still training (the first seconds after start); False = it failed
+        end = time.time() + self._local_wait
+        while lb is None and callable(self._local) and time.time() < end:
+            time.sleep(0.1)
+            lb = self._local()
+        if lb is None and callable(self._local) and self._client is None:
+            otherwise = NOT_READY      # "needs a key" would be wrong for "علي الصوت"
+        d = None
+        if lb and self._tools is not None:
+            try:
+                d = lb.understand(user_text)
+            except Exception as e:
+                print(f"⚠️ local brain: {e}")
+        if d is None:
+            reply = otherwise
+        else:
+            print(f"⚡ الموديل المحلي: {d}")
+            args = json.dumps(d.args, ensure_ascii=False)
+            result = self._tools.execute(d.tool, args)
+            self.last_actions.append((d.tool, args, result))
+            reply = _plain(result) or "تمام"
+        if on_sentence and reply:
+            on_sentence(reply)
+        return reply
 
     # ── internals ───────────────────────────────────────────────
 

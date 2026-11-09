@@ -19,6 +19,18 @@ from PIL import Image, ImageDraw, ImageTk
 
 import customtkinter as ctk
 
+
+def _to_user():
+    """" يا <name>" from config.json → "user_name", or "" (a friend's PC: the greeting has no name)."""
+    import json
+    import os
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json"), encoding="utf-8") as f:
+            name = str(json.load(f).get("user_name") or "").strip()
+    except Exception:
+        name = ""
+    return f" يا {name}" if name else ""
+
 TOKENS = {
     "bg": "#07090E",
     "surface": "#0D111A",
@@ -387,7 +399,7 @@ class ChatWindow(ctk.CTkToplevel):
         self._empty_state.pack(fill="x", padx=18, pady=34)
 
         hr = time.localtime().tm_hour
-        greeting = "☀️ صباح النشاط يا محمد!" if 5 <= hr < 17 else "🌙 مساء الروقان يا محمد!"
+        greeting = f"☀️ صباح النشاط{_to_user()}!" if 5 <= hr < 17 else f"🌙 مساء الروقان{_to_user()}!"
         ctk.CTkLabel(
             self._empty_state, text=greeting,
             font=(TOKENS["font_main"], 19, "bold"), text_color=TOKENS["text"],

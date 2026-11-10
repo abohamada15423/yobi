@@ -14,6 +14,7 @@
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Tauri](https://img.shields.io/badge/UI-Tauri%20%2B%20React-E3B04B?style=flat-square&logo=tauri&logoColor=white)
 [![Release](https://img.shields.io/github/v/release/abohamada15423/yobi?style=flat-square&color=3CC2B4)](https://github.com/abohamada15423/yobi/releases/latest)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue?style=flat-square)](LICENSE)
 
 <br>
 
@@ -115,3 +116,9 @@ python packaging/release.py --notes "إيه الجديد"
 بيشغّل الاختبارات، يرفع رقم `version.py`، يبني الجزيرة والـ zip، يرفع الكود، ويعمل Release على GitHub.
 
 </details>
+
+## الرخصة
+
+يوبي برنامج حر تحت رخصة [GPL-3.0](LICENSE): تقدر تستخدمه وتعدّل فيه وتوزّعه، بشرط إن أي نسخة معدّلة تتنشر مفتوحة بنفس الرخصة.
+
+خط القرآن (KFGQPC Hafs) من مجمع الملك فهد، وليه رخصته الخاصة في `island-tauri/public/fonts/KFGQPC-LICENSE.txt`: مجاني للاستخدام والتوزيع، ممنوع بيعه أو تعديله.

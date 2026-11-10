@@ -1,6 +1,6 @@
 KFGQPC HAFS Uthmanic Script, Version 3.0
 King Fahd Glorious Quran Printing Complex, https://fonts.qurancomplex.gov.sa/
-Included unmodified. This font is NOT covered by the GPL license of Nova Island; it is distributed under its own terms below.
+Included unmodified. This font is NOT covered by Yobi's GPL-3.0 license; it is distributed under its own terms below.
 
 The digitally signed machine readable Typeface(Font) licensed to you is copyrighted, (2010), King Fahd Glorious Quran Printing Complex.
 ISBN: 978-603-8010-15-0, Accession No. 1430/7278

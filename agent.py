@@ -2697,6 +2697,12 @@ if __name__ == "__main__":
     if _HAS_LOGGER:
         yobi_log.info("🚀 يوبي v2.0 جاهز — كل الموديولات الجديدة شغالة")
 
+    try:
+        import updater          # an installed Yobi offers a newer GitHub release once in a while
+        threading.Thread(target=updater.watch, args=(island_ui, print_ar), name="updater", daemon=True).start()
+    except Exception as e:
+        print_ar(f"⚠️ التحديثات: {e}")
+
     threading.Thread(
         target=voice_loop,
         args=(island_ui, app_agent, app_known_targets, listening_enabled),

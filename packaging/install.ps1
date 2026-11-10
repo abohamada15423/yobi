@@ -49,7 +49,9 @@ $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Yobi'
 if (-not $test) {
 New-Item -Force $key | Out-Null
 $mb = [int]((Get-ChildItem $dest -Recurse -File | Measure-Object Length -Sum).Sum / 1KB)
+$ver = Select-String -Path (Join-Path $app 'version.py') -Pattern 'VERSION = "([^"]+)"' -ErrorAction SilentlyContinue | Select-Object -First 1
 $props = @{ DisplayName = 'Yobi'; Publisher = 'Yobi'; DisplayIcon = $icon; InstallLocation = $dest
+            DisplayVersion = $(if ($ver) { $ver.Matches[0].Groups[1].Value } else { '' })
             UninstallString = "`"$ps`" $uninstall"; NoModify = 1; NoRepair = 1; EstimatedSize = $mb }
 foreach ($k in $props.Keys) {
     $type = if ($props[$k] -is [int]) { 'DWord' } else { 'String' }

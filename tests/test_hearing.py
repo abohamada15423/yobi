@@ -316,6 +316,24 @@ class TestRecognizer(EngineCase):
         dur = len(audio.frame_data) / 2 / 16000
         self.assertGreater(dur, 0.8)         # the command that started BEFORE listen() was kept
 
+    def test_set_hotkey_swaps_the_wake_key(self):
+        import keyboard
+        live, real = [], (keyboard.add_hotkey, keyboard.remove_hotkey)
+
+        def add(key, cb):
+            if key == "broken":
+                raise ValueError(key)
+            live.append(key)
+        keyboard.add_hotkey, keyboard.remove_hotkey = add, live.remove      # no real key hook
+        try:
+            rec = self.make()
+            self.assertTrue(rec.set_hotkey("ctrl+alt+y")); self.assertEqual(live, ["ctrl+alt+y"])
+            self.assertTrue(rec.set_hotkey("f8")); self.assertEqual(live, ["f8"])
+            self.assertFalse(rec.set_hotkey("broken")); self.assertEqual(live, ["f8"])     # the old key stays
+            self.assertTrue(rec.set_hotkey("f8")); self.assertEqual(live, ["f8"])
+        finally:
+            keyboard.add_hotkey, keyboard.remove_hotkey = real
+
     def test_wake_by_key_only(self):
         det = wake_word.WakeWordDetector("fake", threshold=0.5, patience=2, log=lambda m: None)
         rec = self.make(wake=det)

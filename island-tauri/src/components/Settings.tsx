@@ -66,6 +66,47 @@ function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
   );
 }
 const Group = ({ children }: { children: ReactNode }) => <div className="divide-y divide-white/5 overflow-hidden rounded-[14px] bg-white/[.04] ring-1 ring-white/5">{children}</div>;
+/** A key press as a wake key in the Python `keyboard` format ("f8", "y", "ctrl+alt+y"); null = a key
+ *  that library has no name for. Python checks it again (wake_key_ok in island_tools.py). */
+const KEY_NAMES: Record<string, string> = {
+  Pause: 'pause', ScrollLock: 'scroll lock', Space: 'space', Insert: 'insert', Home: 'home', End: 'end', PageUp: 'page up', PageDown: 'page down',
+  Tab: 'tab', Enter: 'enter', Backspace: 'backspace', Delete: 'delete', CapsLock: 'caps lock', PrintScreen: 'print screen', NumLock: 'num lock',
+  ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', ContextMenu: 'menu',
+  Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Backslash: 'backslash', Comma: 'comma', Period: '.', Slash: '/',
+  NumpadDecimal: 'decimal', NumpadMultiply: 'multiply', NumpadAdd: 'add', NumpadSubtract: 'subtract', NumpadDivide: 'divide', NumpadEnter: 'enter',
+};
+function comboOf(e: KeyboardEvent): string | null {
+  const c = e.code;
+  const key = /^F([1-9]|1\d|2[0-4])$/.test(c) ? c.toLowerCase() : /^Key[A-Z]$/.test(c) ? c[3].toLowerCase() : /^Digit\d$/.test(c) ? c[5]
+    : /^Numpad\d$/.test(c) ? `num ${c[6]}` : KEY_NAMES[c];
+  if (!key) return null;
+  return [e.ctrlKey && 'ctrl', e.altKey && 'alt', e.shiftKey && 'shift', e.metaKey && 'windows', key].filter(Boolean).join('+');
+}
+const showKey = (k: string) => k.split('+').map(p => p.replace(/\b\w/g, ch => ch.toUpperCase())).join(' + ');
+
+function KeyPicker({ value, taken, label, onPick }: { value: string; taken: string; label: string; onPick: (k: string) => void }) {
+  const [waiting, setWaiting] = useState(false);
+  const [bad, setBad] = useState(false);
+  useEffect(() => {
+    if (!waiting) return;
+    const down = (e: KeyboardEvent) => {
+      e.preventDefault(); e.stopPropagation();
+      if (e.key === 'Escape') { setWaiting(false); return; }
+      if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
+      const k = comboOf(e);
+      if (!k || k === taken) { setBad(true); return; }
+      setWaiting(false); onPick(k);
+    };
+    window.addEventListener('keydown', down, true);
+    return () => window.removeEventListener('keydown', down, true);
+  }, [waiting, taken, onPick]);
+  return (
+    <button type="button" className={field} aria-label={label} aria-live="polite" onClick={() => { setBad(false); setWaiting(w => !w); }} onBlur={() => setWaiting(false)}>
+      {!waiting ? <bdi dir="ltr">{showKey(value)}</bdi> : bad ? T('الزرار ده مينفعش، جرّب غيره', 'That key won’t work, try another') : T('دوس الزرار اللي عايزه…', 'Press the key you want…')}
+    </button>
+  );
+}
+
 function Row({ label, sub, children, hide }: { label: string; sub?: string; children: ReactNode; hide?: boolean }) {
   if (hide) return null;
   return (
@@ -105,6 +146,7 @@ export function SettingsWindow() {
   const save = (section: Sec, values: Record<string, unknown>) => bridge.send({ t: 'settings_set', section, values });
   const get = (key: string) => { const [s, k] = key.split('.') as [Sec, string]; return S?.[s]?.[k]; };
   const put = (key: string, v: unknown) => { const [s, k] = key.split('.') as [Sec, string]; save(s, { [k]: v }); };
+  const wakeKey = String(get('island.wake_key') || 'ctrl+alt+y');
 
   useEffect(() => {
     let got = false, retry: ReturnType<typeof setInterval> | undefined;
@@ -142,7 +184,7 @@ export function SettingsWindow() {
       moments: [...MOMENTS.flatMap(([, l, s]) => [l, s || '']), T('لما البطارية توصل', 'battery saver at')],
       prayer: [T('المدينة', 'City'), T('الطريقة', 'Method'), T('العصر', 'Asr'), T('نبّهني قبلها', 'Alert me before'), T('نبّهني بمواعيد الصلاة', 'Prayer time alerts'), T('خط العرض', 'Latitude'), T('خط الطول', 'Longitude')],
       focus: [T('التركيز', 'Focus'), T('الراحة', 'Break'), T('الراحة الطويلة', 'Long break')], remind: [T('فكّرني', 'Remind me'), T('كل', 'Every'), T('ساعات هادية', 'Quiet hours')], meet: ['iCal', T('الرابط', 'Link'), T('تقويم', 'Calendar')],
-      keys: [T('تنده على يوبي إزاي', 'Wake Yobi with'), T('النداء', 'wake word'), T('الزرار بس', 'Key only'), T('اختصار', 'Shortcut'),T('الشاشة', 'Screen'), T('مكان الجزيرة', 'Island position'), T('على جنب', 'side edge'), T('شغّل يوبي لما أفتح الويندوز', 'Start Yobi with Windows')],
+      keys: [T('تنده على يوبي إزاي', 'Wake Yobi with'), T('النداء', 'wake word'), T('الزرار بس', 'Key only'), T('زرار النداء', 'Wake key'), T('اختصار', 'Shortcut'),T('الشاشة', 'Screen'), T('مكان الجزيرة', 'Island position'), T('على جنب', 'side edge'), T('شغّل يوبي لما أفتح الويندوز', 'Start Yobi with Windows')],
     };
     return Object.fromEntries(SECTIONS.map(s => [s.id, match(s.title, ...ws[s.id])]));
   }, [q, S?.island.lang]);   // match only reads q; the words follow the language
@@ -278,8 +320,11 @@ export function SettingsWindow() {
           <Row label={T('تنده على يوبي إزاي', 'Wake Yobi with')} sub={T('بالزرار بس: مفيش حاجة بتسمعك وهو نايم، وبيوفّر ذاكرة كارت الشاشة', 'Key only: nothing listens while Yobi sleeps, and it saves graphics memory')}>
             <select className={field} aria-label={T('تنده على يوبي إزاي', 'Wake Yobi with')} value={String(S.island.wake || 'voice')} onChange={e => put('island.wake', e.target.value)}>
               <option value="voice">{T('الصوت «يا يوبي» أو الزرار', 'Voice “Ya Yobi” or the key')}</option>
-              <option value="key">{T('الزرار بس (Ctrl + Alt + Y)', 'Key only (Ctrl + Alt + Y)')}</option>
+              <option value="key">{T('الزرار بس ({k})', 'Key only ({k})').replace('{k}', showKey(wakeKey))}</option>
             </select>
+          </Row>
+          <Row label={T('زرار النداء', 'Wake key')} sub={T('الزرار اللي يخلّي يوبي يسمعك. دوس هنا وبعدين دوس أي زرار تختاره', 'The key that makes Yobi listen. Click here, then press any key you like')}>
+            <KeyPicker value={wakeKey} taken={String(S.island.shortcut ?? '').toLowerCase()} label={T('زرار النداء', 'Wake key')} onPick={k => put('island.wake_key', k)} />
           </Row>
           <Row label={T('اختصار فتح الجزيرة', 'Shortcut to open the island')}>
             <select className={field} aria-label={T('اختصار فتح الجزيرة', 'Shortcut to open the island')} value={String(S.island.shortcut ?? '')} onChange={e => put('island.shortcut', e.target.value)} dir="ltr">
@@ -304,7 +349,7 @@ export function SettingsWindow() {
           </Row>
           <Row label={T('شغّل يوبي لما أفتح الويندوز', 'Start Yobi with Windows')} sub={T('لحسابك بس، ومن غير شباك أسود', 'For your account only, with no black window')}><Switch on={!!S.island.autostart} onChange={v => put('island.autostart', v)} label={T('شغّل يوبي مع الويندوز', 'Start Yobi with Windows')} /></Row>
         </Group>
-        <p className="m-0 text-[12px] leading-relaxed text-ink-3">{T('بعد الاختصار: الأسهم يمين وشمال بتقلّب الصفحات، و Tab بيتنقل بين الأزرار، و Esc بيقفل. اتكلم مع يوبي من غير ما تنده: Ctrl + Alt + Y.', 'After the shortcut: the left and right arrows flip pages, Tab moves between buttons, and Esc closes. Talk to Yobi without the wake word: Ctrl + Alt + Y.')}</p>
+        <p className="m-0 text-[12px] leading-relaxed text-ink-3">{T('بعد الاختصار: الأسهم يمين وشمال بتقلّب الصفحات، و Tab بيتنقل بين الأزرار، و Esc بيقفل. اتكلم مع يوبي من غير ما تنده: {k}.', 'After the shortcut: the left and right arrows flip pages, Tab moves between buttons, and Esc closes. Talk to Yobi without the wake word: {k}.').replace('{k}', showKey(wakeKey))}</p>
       </>
     ),
   };

@@ -106,12 +106,30 @@ class VADRecognizer:
             )
             self._stream.start()
 
-        if hotkey:
+        self._hotkey = None         # the name of the registered wake key
+        self.set_hotkey(hotkey)
+
+    def set_hotkey(self, hotkey):
+        """Register the wake key, replacing the one before it (the settings window changes it live)."""
+        try:
+            import keyboard
+            old = self._hotkey
+            if old:
+                keyboard.remove_hotkey(old)
+                self._hotkey = None
             try:
-                import keyboard
-                keyboard.add_hotkey(hotkey, self._on_hotkey)
-            except Exception as e:
-                print(f"⚠️ hotkey '{hotkey}' مش متسجل: {e}")
+                if hotkey:
+                    keyboard.add_hotkey(hotkey, self._on_hotkey)
+                    self._hotkey = hotkey
+            except Exception:
+                if old:                                     # keep the key that worked
+                    keyboard.add_hotkey(old, self._on_hotkey)
+                    self._hotkey = old
+                raise
+            return True
+        except Exception as e:
+            print(f"⚠️ hotkey '{hotkey}' مش متسجل: {e}")
+            return False
 
     # ── sr-compatible surface ───────────────────────────────────
 

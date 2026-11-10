@@ -36,9 +36,24 @@ ISLAND_DEFAULTS = {
     "radio_pause_prayer": True,
     "battery_saver_at": 20, "radio_volume": 70, "radio_station": "", "pinned_apps": [],
     # polish
-    "shortcut": "Ctrl+Alt+I", "display": "primary", "position": "top", "wake": "voice", "idle_clock": True, "idle_info": True, "autostart": False,
+    "shortcut": "Ctrl+Alt+I", "display": "primary", "position": "top", "wake": "voice", "wake_key": "ctrl+alt+y", "idle_clock": True, "idle_info": True, "autostart": False,
 }
 SHORTCUTS = ("Ctrl+Alt+I", "Ctrl+Alt+Space", "Ctrl+Shift+Space", "Alt+Shift+Y", "")
+def wake_key_ok(v):
+    """Any key or combo the `keyboard` library can register: "f8", "y", "ctrl+space", "windows+num 0"...
+    Not a modifier alone, and one combo only (no "a, b" sequences)."""
+    if not isinstance(v, str) or not v or len(v) > 40 or v != v.lower() or "," in v:
+        return False
+    if v.split("+")[-1].strip() in ("ctrl", "alt", "shift", "windows"):
+        return False
+    try:
+        import keyboard
+        keyboard.parse_hotkey(v)
+        return True
+    except Exception:
+        return False
+
+
 ISLAND_RANGES = {"battery_saver_at": (10, 100), "radio_volume": (0, 100)}
 DAILY_RANGES = {
     "prayer_soon_min": (0, 30), "focus_min": (5, 120), "break_min": (1, 60),
@@ -97,6 +112,8 @@ def clean_settings(section, patch):
             elif k == "position" and v in ("top", "right", "left"):
                 out[k] = v
             elif k == "wake" and v in ("voice", "key"):      # "key": only the hotkey wakes Yobi
+                out[k] = v
+            elif k == "wake_key" and wake_key_ok(v):
                 out[k] = v
             elif k == "shortcut" and v in SHORTCUTS:
                 out[k] = v
@@ -244,6 +261,10 @@ class IslandTools:
         self._panel = threading.Event()
         cfg = read_config()
         self.cfg = dict(ISLAND_DEFAULTS, **clean_settings("island", cfg.get("island")))
+        saved = cfg.get("island") if isinstance(cfg.get("island"), dict) else {}
+        if "wake_key" not in saved and wake_key_ok(cfg.get("hotkey")):
+            self.cfg["wake_key"] = cfg["hotkey"]        # the old top-level "hotkey", from before the setting
+        self.on_wake_key = None     # agent: re-register the key when the settings window changes it
         _ui["lang"] = self.cfg["lang"]
         # downloads
         self._dl = {}               # partial path -> info
@@ -343,6 +364,8 @@ class IslandTools:
             if "autostart" in good:
                 good["autostart"] = set_autostart(good["autostart"])
             self.cfg.update(good)
+            if "wake_key" in good and self.on_wake_key is not None:
+                self.on_wake_key(good["wake_key"])
             _ui["lang"] = self.cfg["lang"]
             self._send_island_settings()
             if not self.cfg["clipboard_history"]:

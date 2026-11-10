@@ -1213,6 +1213,11 @@ def voice_loop(island, agent, known_targets, listening_enabled):
         cfg = tools.cfg if tools is not None else (CONFIG.get("island") or {})
         return cfg.get("wake") == "key"
 
+    def _wake_key():
+        tools = getattr(island, "_tools", None)
+        cfg = tools.cfg if tools is not None else (CONFIG.get("island") or {})
+        return cfg.get("wake_key") or CONFIG.get("hotkey", "ctrl+alt+y")
+
     wake_detector = None
     if WakeWordDetector is not None and H["wake_model"]:
         try:
@@ -1255,7 +1260,7 @@ def voice_loop(island, agent, known_targets, listening_enabled):
     recognizer = VADRecognizer(
         aggressiveness=CONFIG.get("vad_aggressiveness", 2),
         end_silence_ms=CONFIG.get("end_silence_ms", 600),
-        hotkey=CONFIG.get("hotkey", "ctrl+alt+y"),
+        hotkey=_wake_key(),
         is_speaking=is_speaking,
         stop_speaking=stop_speaking,
         engine=audio_engine,
@@ -1279,7 +1284,9 @@ def voice_loop(island, agent, known_targets, listening_enabled):
     with mic as source:
         print_ar("🎙️ بظبط المايك... (ثانية واحدة)")
         recognizer.adjust_for_ambient_noise(source, duration=1.0)
-    print_ar(f"⌨️ اختصار النداء/المقاطعة: {CONFIG.get('hotkey', 'ctrl+alt+y')}")
+    print_ar(f"⌨️ اختصار النداء/المقاطعة: {_wake_key()}")
+    if getattr(island, "_tools", None) is not None:
+        island._tools.on_wake_key = recognizer.set_hotkey      # the settings window changes it live
 
     wake_words = CONFIG.get("wake_words",
                             ["يوبي", "يو بي", "yobi", "youbi", "yopi", "يا يوبي", "يوبى", "يايوبي", "يا يوبى", "بوبي", "يا بوبي"])

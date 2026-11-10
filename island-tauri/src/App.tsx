@@ -93,27 +93,27 @@ function Island() {
              onPointerEnter={pointerEnter} onPointerLeave={pointerLeave}>
       <AnimatePresence initial={false} mode="popLayout">
         {show === 'turn' ? (
-          <motion.div key="turn" className="h-full" exit={{ opacity: 0, transition: { duration: 0.1 } }}>
+          <motion.div key="turn" className="h-full" initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { duration: 0.18, delay: 0.04 } }} exit={{ opacity: 0, transition: { duration: 0.12 } }}>
             <Turn onSize={onTurn} />
           </motion.div>
         ) : show === 'hud' ? (
-          <motion.div key="hud" className="h-full" exit={{ opacity: 0, transition: { duration: 0.1 } }}>
+          <motion.div key="hud" className="h-full" initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { duration: 0.18, delay: 0.04 } }} exit={{ opacity: 0, transition: { duration: 0.12 } }}>
             <Hud />
           </motion.div>
         ) : show === 'notice' ? (
-          <motion.div key="notice" className="h-full" exit={{ opacity: 0, transition: { duration: 0.1 } }}>
+          <motion.div key="notice" className="h-full" initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { duration: 0.18, delay: 0.04 } }} exit={{ opacity: 0, transition: { duration: 0.12 } }}>
             <Notice onSize={onNotice} />
           </motion.div>
         ) : show === 'peek' ? (
-          <motion.div key="peek" className="h-full" exit={{ opacity: 0, transition: { duration: 0.1 } }}>
+          <motion.div key="peek" className="h-full" initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { duration: 0.18, delay: 0.04 } }} exit={{ opacity: 0, transition: { duration: 0.12 } }}>
             <TrackPeek />
           </motion.div>
         ) : show === 'panel' ? (
-          <motion.div key="panel" className="h-full" exit={{ opacity: 0, transition: { duration: 0.1 } }}>
+          <motion.div key="panel" className="h-full" initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { duration: 0.18, delay: 0.04 } }} exit={{ opacity: 0, transition: { duration: 0.12 } }}>
             <Panel onSize={onPanel} />
           </motion.div>
         ) : (
-          <motion.div key="compact" className="h-full" exit={{ opacity: 0, transition: { duration: 0.08 } }}>
+          <motion.div key="compact" className="h-full" initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { duration: 0.18, delay: 0.04 } }} exit={{ opacity: 0, transition: { duration: 0.1 } }}>
             <CompactIsland />
           </motion.div>
         )}

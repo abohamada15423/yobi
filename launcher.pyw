@@ -53,7 +53,7 @@ def main():
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     kernel32.CreateMutexW(None, False, "Local\\YobiAssistant")
     if ctypes.get_last_error() == 183:                        # ERROR_ALREADY_EXISTS
-        message("يوبي شغال بالفعل. دوس Ctrl + Alt + Y وكلّمه.")
+        message("يوبي شغال بالفعل. دوس زرار النداء وكلّمه.")
         return
 
     sys.argv = [os.path.join(HERE, "agent.py")]

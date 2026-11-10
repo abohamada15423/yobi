@@ -50,6 +50,8 @@ export function Capsule({ width, height, expanded = false, hidden = false, child
         boxShadow: expanded
           ? '0 18px 50px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06)'
           : '0 8px 24px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04)',
+        transition: 'box-shadow .3s ease',     // the shadow eases with the shape instead of snapping
+        willChange: 'width, height',
       }}
       initial={false}
       animate={{ width, height, ...corners, opacity: hidden ? 0 : 1, scale: hidden ? 0.6 : 1 }}

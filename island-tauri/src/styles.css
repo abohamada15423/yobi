@@ -42,6 +42,9 @@ html, body, #root {
   -webkit-font-smoothing: antialiased; user-select: none;
 }
 :focus-visible { outline: 2px solid var(--color-gold); outline-offset: 2px; }
+/* the open list of a <select> is drawn by the system: without this it is white with our light text on it */
+:root { color-scheme: dark; }
+option { background: #1b1b20; color: var(--color-ink); }
 
 /* live-activity motion: compositor-only (transform/opacity), so it costs next to nothing */
 @keyframes yobi-bar { 0%, 100% { transform: scaleY(.35); } 50% { transform: scaleY(1); } }

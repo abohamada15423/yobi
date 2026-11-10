@@ -4,9 +4,9 @@ import type { Transition } from 'motion/react';
 
 export const spring = {
   /** compact → expanded: a little overshoot, like the capsule stretching open */
-  open: { type: 'spring', stiffness: 380, damping: 30, mass: 0.9 } as Transition,
+  open: { type: 'spring', stiffness: 300, damping: 30, mass: 1 } as Transition,
   /** expanded → compact: no overshoot */
-  close: { type: 'spring', stiffness: 460, damping: 42 } as Transition,
+  close: { type: 'spring', stiffness: 340, damping: 38 } as Transition,
   /** buttons, toggles, small things */
   micro: { type: 'spring', stiffness: 700, damping: 34 } as Transition,
   /** content entering after the shape has started to grow */

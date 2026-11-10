@@ -21,6 +21,23 @@ def make(tmp):
 
 
 class TestSettings(unittest.TestCase):
+    def test_wake_key_from_settings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "config.json")
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump({"hotkey": "ctrl+alt+j"}, f)          # the old top-level key still counts
+            t, sent = make(tmp)
+            self.assertEqual(t.cfg["wake_key"], "ctrl+alt+j")
+            got = []
+            t.on_wake_key = got.append
+            with mock.patch.object(it, "CONFIG_PATH", path):
+                t._apply_settings("island", {"wake_key": "f8"})
+                t._apply_settings("island", {"wake_key": "ctrl"})   # refused
+            self.assertEqual((got, t.cfg["wake_key"]), (["f8"], "f8"))
+            with open(path, encoding="utf-8") as f:
+                self.assertEqual(json.load(f)["island"]["wake_key"], "f8")
+            self.assertEqual(make(tmp)[0].cfg["wake_key"], "f8")
+
     def test_only_valid_values_pass(self):
         self.assertEqual(it.clean_settings("island", {"theme": "night", "downloads": False, "x": 1}),
                          {"theme": "night", "downloads": False})
@@ -107,6 +124,15 @@ class TestShelfAndPrivacy(unittest.TestCase):
         self.assertEqual(it.clean_settings("island", {"wake": "key"}), {"wake": "key"})
         self.assertEqual(it.clean_settings("island", {"wake": "never"}), {})
         self.assertEqual(it.ISLAND_DEFAULTS["wake"], "voice")
+        # the wake key: any key the keyboard library can register
+        import keyboard
+        self.assertTrue(it.wake_key_ok(it.ISLAND_DEFAULTS["wake_key"]))
+        for good in ("f8", "f9", "f24", "y", "5", "space", "home", "pause", "scroll lock", "shift+f2", "ctrl+space", "alt+shift+y",
+                     "ctrl+alt+shift+1", "alt+page up", "num 0", "comma", "ctrl+-", "windows+y", "tab", "caps lock"):
+            self.assertEqual(it.clean_settings("island", {"wake_key": good}), {"wake_key": good}, good)
+            keyboard.parse_hotkey(good)                 # the library that registers it takes it too
+        for bad in ("ctrl", "ctrl+shift", "", "Ctrl+Alt+Y", "ctrl+alt+y, f8", "no such key", "x" * 41, 5, None):
+            self.assertEqual(it.clean_settings("island", {"wake_key": bad}), {}, bad)
         try:
             it._ui["lang"] = "en"
             self.assertEqual(it.privacy_label("Microsoft.WindowsCamera_8wekyb3d8bbwe"), "Camera")

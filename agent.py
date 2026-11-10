@@ -846,7 +846,14 @@ except Exception as _e:
 def _load_wake_model():
     size = os.environ.get("YOBI_WAKE_MODEL", "small")
     try:
-        return WhisperModel(size, device="cuda", compute_type="float16")
+        if (CONFIG.get("hearing") or {}).get("stt_local_device") == "cpu":
+            raise RuntimeError("stt_local_device = cpu")
+        m = WhisperModel(size, device="cuda", compute_type="float16")
+        # the GPU libraries load on first use: a PC with a card but without them (cublas...) fails
+        # here, once, not on every wake check later
+        import numpy as np
+        list(m.transcribe(np.zeros(8000, dtype=np.float32), language="ar", beam_size=1)[0])
+        return m
     except Exception as e:
         print_ar(f"⚠️ مفيش GPU شغال ({str(e)[:80]}) — هشتغل على الـ CPU")
         cpu_size = "base" if size in ("small", "medium", "large-v3") else size
@@ -1103,7 +1110,7 @@ class DesktopAgent:
                 os.startfile(launch)
             return "تم تشغيل اللعبة 🎮"
         if entry.kind == "app" and not os.path.exists(str(launch)):
-            subprocess.Popen(["cmd", "/c", "start", "", launch], shell=False)
+            subprocess.Popen(["cmd", "/c", "start", "", launch], shell=False, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
             return "تم تشغيل البرنامج"
         os.startfile(launch)
         return "تم تشغيل البرنامج"
@@ -1287,6 +1294,12 @@ def voice_loop(island, agent, known_targets, listening_enabled):
     print_ar(f"⌨️ اختصار النداء/المقاطعة: {_wake_key()}")
     if getattr(island, "_tools", None) is not None:
         island._tools.on_wake_key = recognizer.set_hotkey      # the settings window changes it live
+    key_chime = [0.0]
+
+    def _key_pressed():         # heard at once, even when the loop is busy or a game covers the island
+        key_chime[0] = time.time()
+        play_wake()
+    recognizer.on_hotkey = _key_pressed
 
     wake_words = CONFIG.get("wake_words",
                             ["يوبي", "يو بي", "yobi", "youbi", "yopi", "يا يوبي", "يوبى", "يايوبي", "يا يوبى", "بوبي", "يا بوبي"])
@@ -2337,7 +2350,8 @@ def voice_loop(island, agent, known_targets, listening_enabled):
 
     def _conversation(first_command=None, first_audio=None):
         nonlocal chat_mode_active
-        play_wake()
+        if time.time() - key_chime[0] > 2:      # the wake key already chimed
+            play_wake()
         island.after(0, lambda: island.set_state("listening"))
         context.in_conversation = True
         addressed.reset()

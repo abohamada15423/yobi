@@ -66,13 +66,13 @@ function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
   );
 }
 const Group = ({ children }: { children: ReactNode }) => <div className="divide-y divide-white/5 overflow-hidden rounded-[14px] bg-white/[.04] ring-1 ring-white/5">{children}</div>;
-/** A key press as a wake key in the Python `keyboard` format ("f8", "y", "ctrl+alt+y"); null = a key
- *  that library has no name for. Python checks it again (wake_key_ok in island_tools.py). */
+/** A key press as a wake key as hotkey.py names it ("f8", "y", "ctrl+alt+y"); null = a key
+ *  it has no name for. Python checks it again (wake_key_ok in island_tools.py). */
 const KEY_NAMES: Record<string, string> = {
   Pause: 'pause', ScrollLock: 'scroll lock', Space: 'space', Insert: 'insert', Home: 'home', End: 'end', PageUp: 'page up', PageDown: 'page down',
   Tab: 'tab', Enter: 'enter', Backspace: 'backspace', Delete: 'delete', CapsLock: 'caps lock', PrintScreen: 'print screen', NumLock: 'num lock',
   ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', ContextMenu: 'menu',
-  Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Backslash: 'backslash', Comma: 'comma', Period: '.', Slash: '/',
+  Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Backslash: 'backslash', Comma: 'comma', Period: '.', Slash: '/', Semicolon: 'semicolon', Quote: 'quote', Backquote: 'backquote',
   NumpadDecimal: 'decimal', NumpadMultiply: 'multiply', NumpadAdd: 'add', NumpadSubtract: 'subtract', NumpadDivide: 'divide', NumpadEnter: 'enter',
 };
 function comboOf(e: KeyboardEvent): string | null {

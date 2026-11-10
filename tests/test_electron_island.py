@@ -19,7 +19,7 @@ def make():
 
 
 def run_until_idle(isl, seconds=0.5):
-    threading.Timer(seconds, isl.quit).start()
+    isl.after(seconds * 1000, isl.quit)     # on the loop's own clock: a slow start can't end it before the jobs ran
     isl.mainloop()
 
 

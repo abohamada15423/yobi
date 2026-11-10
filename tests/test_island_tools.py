@@ -124,14 +124,12 @@ class TestShelfAndPrivacy(unittest.TestCase):
         self.assertEqual(it.clean_settings("island", {"wake": "key"}), {"wake": "key"})
         self.assertEqual(it.clean_settings("island", {"wake": "never"}), {})
         self.assertEqual(it.ISLAND_DEFAULTS["wake"], "voice")
-        # the wake key: any key the keyboard library can register
-        import keyboard
+        # the wake key: any key hotkey.py knows
         self.assertTrue(it.wake_key_ok(it.ISLAND_DEFAULTS["wake_key"]))
         for good in ("f8", "f9", "f24", "y", "5", "space", "home", "pause", "scroll lock", "shift+f2", "ctrl+space", "alt+shift+y",
-                     "ctrl+alt+shift+1", "alt+page up", "num 0", "comma", "ctrl+-", "windows+y", "tab", "caps lock"):
+                     "ctrl+alt+shift+1", "alt+page up", "num 0", "comma", "ctrl+-", "windows+y", "tab", "caps lock", "=", "[", "semicolon"):
             self.assertEqual(it.clean_settings("island", {"wake_key": good}), {"wake_key": good}, good)
-            keyboard.parse_hotkey(good)                 # the library that registers it takes it too
-        for bad in ("ctrl", "ctrl+shift", "", "Ctrl+Alt+Y", "ctrl+alt+y, f8", "no such key", "x" * 41, 5, None):
+        for bad in ("ctrl", "ctrl+shift", "", "Ctrl+Alt+Y", "ctrl+alt+y, f8", "ctrl+ctrl+y", "win+y", "no such key", "x" * 41, 5, None):
             self.assertEqual(it.clean_settings("island", {"wake_key": bad}), {}, bad)
         try:
             it._ui["lang"] = "en"

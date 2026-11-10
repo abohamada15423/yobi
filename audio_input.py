@@ -106,30 +106,22 @@ class VADRecognizer:
             )
             self._stream.start()
 
-        self._hotkey = None         # the name of the registered wake key
+        self._hotkey = None         # hotkey.Watcher, made on first use
+        self.on_hotkey = None       # called the moment the wake key goes down (the agent's chime)
         self.set_hotkey(hotkey)
 
     def set_hotkey(self, hotkey):
-        """Register the wake key, replacing the one before it (the settings window changes it live)."""
+        """Watch this wake key, replacing the one before it (the settings window changes it live)."""
         try:
-            import keyboard
-            old = self._hotkey
-            if old:
-                keyboard.remove_hotkey(old)
-                self._hotkey = None
-            try:
-                if hotkey:
-                    keyboard.add_hotkey(hotkey, self._on_hotkey)
-                    self._hotkey = hotkey
-            except Exception:
-                if old:                                     # keep the key that worked
-                    keyboard.add_hotkey(old, self._on_hotkey)
-                    self._hotkey = old
-                raise
-            return True
+            if self._hotkey is None:
+                import hotkey as hk
+                self._hotkey = hk.Watcher(self._on_hotkey)
+            if self._hotkey.set(hotkey):
+                return True
+            print(f"⚠️ hotkey '{hotkey}' مش زرار معروف")
         except Exception as e:
             print(f"⚠️ hotkey '{hotkey}' مش متسجل: {e}")
-            return False
+        return False
 
     # ── sr-compatible surface ───────────────────────────────────
 
@@ -353,6 +345,8 @@ class VADRecognizer:
             self._acc_t = t
 
     def _on_hotkey(self):
+        if self.on_hotkey is not None:
+            self.on_hotkey()
         self._stop_speaking()
         self.hotkey_event.set()
 

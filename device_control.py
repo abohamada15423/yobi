@@ -91,7 +91,7 @@ def activate_smart_mode(mode_name):
     if mode in ("study", "coding", "work", "مذاكرة", "شغل", "كودينج"):
         set_volume(25)
         try:
-            subprocess.Popen(["cmd", "/c", "start", "", "code"], shell=False)
+            subprocess.Popen(["cmd", "/c", "start", "", "code"], shell=False, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         except Exception:
             pass
         return "فعلت مود المذاكرة والكودينج 💻 (فتحت VS Code وهديت الصوت لـ 25%)"
@@ -100,7 +100,7 @@ def activate_smart_mode(mode_name):
         set_volume(80)
         handle_free_ram()
         try:
-            subprocess.Popen(["cmd", "/c", "start", "", "discord:"], shell=False)
+            subprocess.Popen(["cmd", "/c", "start", "", "discord:"], shell=False, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         except Exception:
             pass
         return "فعلت مود الجيمينج 🎮 (فضيت الرامات، فتحت ديسكورد، وظبطت الصوت 80%)"

@@ -40,18 +40,9 @@ ISLAND_DEFAULTS = {
 }
 SHORTCUTS = ("Ctrl+Alt+I", "Ctrl+Alt+Space", "Ctrl+Shift+Space", "Alt+Shift+Y", "")
 def wake_key_ok(v):
-    """Any key or combo the `keyboard` library can register: "f8", "y", "ctrl+space", "windows+num 0"...
-    Not a modifier alone, and one combo only (no "a, b" sequences)."""
-    if not isinstance(v, str) or not v or len(v) > 40 or v != v.lower() or "," in v:
-        return False
-    if v.split("+")[-1].strip() in ("ctrl", "alt", "shift", "windows"):
-        return False
-    try:
-        import keyboard
-        keyboard.parse_hotkey(v)
-        return True
-    except Exception:
-        return False
+    """Any key or combo hotkey.py knows: "f8", "y", "=", "ctrl+space", "windows+num 0"..."""
+    import hotkey
+    return hotkey.parse(v) is not None
 
 
 ISLAND_RANGES = {"battery_saver_at": (10, 100), "radio_volume": (0, 100)}

@@ -418,6 +418,17 @@ class GameCompanion:
 
         return self.get_tip(game)
 
+    @staticmethod
+    def gpus():
+        """GPUtil.getGPUs() without the console window: GPUtil starts nvidia-smi with a visible
+        console, which pops up over the game every few seconds when Yobi itself has none (pythonw)."""
+        import functools
+        import subprocess
+        import sys
+        import GPUtil
+        sys.modules[GPUtil.getGPUs.__module__].Popen = functools.partial(subprocess.Popen, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        return GPUtil.getGPUs()
+
     def get_performance(self):
         """Get current system performance metrics."""
         if not _HAS_PSUTIL:
@@ -429,8 +440,7 @@ class GameCompanion:
             # Try to get GPU usage (optional)
             gpu = None
             try:
-                import GPUtil
-                gpus = GPUtil.getGPUs()
+                gpus = self.gpus()
                 if gpus:
                     gpu = gpus[0].load * 100
             except ImportError:

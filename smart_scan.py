@@ -97,7 +97,7 @@ def _scan_wifi_networks():
         out = subprocess.run(
             ["netsh", "wlan", "show", "profiles"],
             capture_output=True, text=True, timeout=10,
-            encoding="utf-8", errors="ignore",
+            encoding="utf-8", errors="ignore", creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         ).stdout
         profiles = []
         for line in out.splitlines():

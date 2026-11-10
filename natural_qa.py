@@ -102,8 +102,8 @@ def try_system_answer(command):
     # GPU
     if _has(cmd, ["gpu", "كارت الشاشة", "كارت الشاشه", "الفيجا", "حرارة الكارت"]):
         try:
-            import GPUtil
-            gpus = GPUtil.getGPUs()
+            from game_companion import GameCompanion
+            gpus = GameCompanion.gpus()
             if gpus:
                 g = gpus[0]
                 return (

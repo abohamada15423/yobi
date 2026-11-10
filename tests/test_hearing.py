@@ -317,22 +317,33 @@ class TestRecognizer(EngineCase):
         self.assertGreater(dur, 0.8)         # the command that started BEFORE listen() was kept
 
     def test_set_hotkey_swaps_the_wake_key(self):
-        import keyboard
-        live, real = [], (keyboard.add_hotkey, keyboard.remove_hotkey)
+        import hotkey as hk
+        held = set()
+        rec = self.make()
+        rec._hotkey = hk.Watcher(rec._on_hotkey, down=held.__contains__)     # no real keyboard
+        rec._hotkey._thread = object()                                       # and no polling thread
 
-        def add(key, cb):
-            if key == "broken":
-                raise ValueError(key)
-            live.append(key)
-        keyboard.add_hotkey, keyboard.remove_hotkey = add, live.remove      # no real key hook
-        try:
-            rec = self.make()
-            self.assertTrue(rec.set_hotkey("ctrl+alt+y")); self.assertEqual(live, ["ctrl+alt+y"])
-            self.assertTrue(rec.set_hotkey("f8")); self.assertEqual(live, ["f8"])
-            self.assertFalse(rec.set_hotkey("broken")); self.assertEqual(live, ["f8"])     # the old key stays
-            self.assertTrue(rec.set_hotkey("f8")); self.assertEqual(live, ["f8"])
-        finally:
-            keyboard.add_hotkey, keyboard.remove_hotkey = real
+        def press(*vks):
+            held.clear(); rec._hotkey.poll()                # everything up
+            held.update(vks); rec._hotkey.poll()
+            fired = rec.hotkey_event.is_set()
+            rec.hotkey_event.clear()
+            return fired
+        CTRL, ALT, Y, F8 = 0x11, 0x12, ord("Y"), 0x77
+        self.assertTrue(rec.set_hotkey("ctrl+alt+y"))
+        self.assertTrue(press(CTRL, ALT, Y))
+        self.assertFalse(press(Y))                          # the modifiers are part of the key
+        self.assertFalse(press(CTRL, ALT, 0x10, Y))         # and no extra ones
+        self.assertTrue(rec.set_hotkey("f8"))
+        self.assertTrue(press(F8))
+        self.assertFalse(press(CTRL, ALT, Y))               # the old key is gone
+        self.assertFalse(press(CTRL, F8))
+        rec._hotkey.poll()                                  # still held: one press, one wake
+        self.assertFalse(rec.hotkey_event.is_set())
+        self.assertFalse(rec.set_hotkey("no such key"))
+        self.assertTrue(press(F8))                          # a bad name keeps the key that worked
+        self.assertEqual(hk.parse("="), (frozenset(), 0xBB))    # by key, not through the keyboard layout
+        self.assertEqual(hk.parse("["), (frozenset(), 0xDB))
 
     def test_wake_by_key_only(self):
         det = wake_word.WakeWordDetector("fake", threshold=0.5, patience=2, log=lambda m: None)

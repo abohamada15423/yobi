@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """The Tauri island against the real Python side: python tests/test_island_tauri.py
 
-Starts yobi-island.exe off-screen through ElectronIsland(engine="tauri"), checks the token
+Starts yobi-island.exe off-screen through ElectronIsland(), checks the token
 handshake, messages both ways, and that the window exits when Python says quit.
 Skipped when the Tauri island hasn't been built yet.
 """
@@ -20,7 +20,7 @@ class TestTauriIsland(unittest.TestCase):
     def test_handshake_messages_and_quit(self):
         os.environ["YOBI_ISLAND_OFFSCREEN"] = "1"
         try:
-            isl = ei.ElectronIsland(engine="tauri", log=lambda *a: None)
+            isl = ei.ElectronIsland(log=lambda *a: None)
         finally:
             os.environ.pop("YOBI_ISLAND_OFFSCREEN", None)
         got = []
@@ -43,7 +43,7 @@ class TestTauriIsland(unittest.TestCase):
         it's done (`view` idle), so agent.py's is_free() sees Yobi free again."""
         os.environ["YOBI_ISLAND_OFFSCREEN"] = "1"
         try:
-            isl = ei.ElectronIsland(engine="tauri", log=lambda *a: None)
+            isl = ei.ElectronIsland(log=lambda *a: None)
         finally:
             os.environ.pop("YOBI_ISLAND_OFFSCREEN", None)
         seen = {}

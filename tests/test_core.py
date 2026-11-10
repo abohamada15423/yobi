@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 """Verification tests for Yobi's pure-logic core (v7.3 Pro).
 
-Run directly:  python test_core.py
+Run directly:  python tests/test_core.py
 """
+import os
 import sys
 import traceback
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app_scanner import resolve_target
 from system_control import match_system_command

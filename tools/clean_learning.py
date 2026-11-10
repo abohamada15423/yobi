@@ -2,8 +2,8 @@
 """
 clean_learning.py — نضّف اللي يوبي اتعلمه غلط قبل v7. شغّله مرة واحدة:
 
-    python clean_learning.py            # يوريك هيمسح إيه بس (dry run)
-    python clean_learning.py --apply    # يمسح فعلًا (وبياخد backup الأول)
+    python tools/clean_learning.py            # يوريك هيمسح إيه بس (dry run)
+    python tools/clean_learning.py --apply    # يمسح فعلًا (وبياخد backup الأول)
 """
 
 import json
@@ -14,7 +14,8 @@ import time
 
 import target_resolver as tr
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # Yobi's folder
+sys.path.insert(0, HERE)
 
 
 def _load(name, default):
@@ -167,7 +168,7 @@ def main(apply):
           f"و{len(fixes) - len(vocab.get('fixes') or {})} تصحيح سمع")
 
     if not apply:
-        print("\n(ده dry run. شغّل `python clean_learning.py --apply` عشان يتنفذ)")
+        print("\n(ده dry run. شغّل `python tools/clean_learning.py --apply` عشان يتنفذ)")
         return
 
     bdir = os.path.join(HERE, "backups", time.strftime("pre_v7_%Y%m%d_%H%M%S"))

@@ -2500,13 +2500,13 @@ if __name__ == "__main__":
     )
 
     island_ui = None
-    # config.json → "ui": {"engine": "tauri"} runs the new Tauri island, "tk" the old tkinter one.
-    _engine = (CONFIG.get("ui") or {}).get("engine", "electron")
-    if _engine in ("electron", "tauri"):
+    # config.json → "ui": {"engine": "tk"} runs the old tkinter island; anything else the Tauri one
+    # ("electron" from older configs means Tauri now: the Electron island was removed)
+    if (CONFIG.get("ui") or {}).get("engine", "tauri") != "tk":
         try:
             from electron_island import ElectronIsland
-            island_ui = ElectronIsland(log=print_ar, engine=_engine)
-            print_ar(f"🏝️ الواجهة الجديدة ({_engine}) شغالة")
+            island_ui = ElectronIsland(log=print_ar)
+            print_ar("🏝️ الواجهة الجديدة شغالة")
         except Exception as e:
             print_ar(f"⚠️ الواجهة الجديدة مش شغالة ({e}) — هرجع للقديمة")
     if island_ui is None:

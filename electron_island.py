@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-ElectronIsland — يوبي بواجهة جديدة (Electron) بدل ui.py.
+ElectronIsland — يوبي بواجهة Tauri (island-tauri/) بدل ui.py.
 
 Same public methods agent.py already calls on DynamicIsland (after, set_state,
 say, ask, end_turn, is_free, mainloop, bind ...), so the agent barely changes.
-The Electron window in island/ only draws; every decision stays in Python.
+The Tauri window only draws; every decision stays in Python.
 
 Transport: a 127.0.0.1 socket with a one-time token, JSON one message per line.
 Callbacks given to after() run on the thread that calls mainloop(), like Tk.
@@ -21,7 +21,6 @@ import threading
 import time
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-ISLAND_DIR = os.path.join(_HERE, "island")
 
 STATE_ALIASES = {
     "hide": "idle", "hidden": "idle", "idle": "idle",
@@ -40,22 +39,9 @@ _ACTIVE = {"listening", "recording", "thinking", "executing", "account", "speaki
 SAY_MAX = 230
 
 
-# The Electron runtime and the Tauri build live in ~/.yobi: out of OneDrive (they're big) and out of
+# The Tauri build lives in ~/.yobi: out of OneDrive (they're big) and out of
 # AppData, which the Claude desktop app redirects to its own private folder for anything it writes.
 YOBI_HOME = os.path.join(os.path.expanduser("~"), ".yobi")
-
-
-def find_electron():
-    """electron.exe: YOBI_ELECTRON, then island/node_modules, then the shared runtime."""
-    cands = [
-        os.environ.get("YOBI_ELECTRON"),
-        os.path.join(ISLAND_DIR, "node_modules", "electron", "dist", "electron.exe"),
-        os.path.join(YOBI_HOME, "electron-runtime", "node_modules", "electron", "dist", "electron.exe"),
-    ]
-    for c in cands:
-        if c and os.path.isfile(c):
-            return c
-    return None
 
 
 TAURI_DIR = os.path.join(_HERE, "island-tauri")
@@ -98,20 +84,12 @@ def shorten(text):
 class ElectronIsland:
     CONNECT_TIMEOUT_S = 25
 
-    def __init__(self, electron_exe=None, log=print, engine="electron"):
-        """engine: "electron" (island/) or "tauri" (island-tauri/). Same messages either way."""
+    def __init__(self, log=print):
         self._init_core(log)
-
-        if engine == "tauri":
-            exe = find_tauri()
-            if not exe:
-                raise RuntimeError("yobi-island.exe مش موجود (اعمل build لـ island-tauri)")
-            args, cwd = [exe], TAURI_DIR if os.path.isdir(TAURI_DIR) else os.path.dirname(exe)
-        else:
-            exe = electron_exe or find_electron()
-            if not exe:
-                raise RuntimeError("electron.exe مش موجود (شغّل: npm install جوه island)")
-            args, cwd = [exe, ISLAND_DIR], ISLAND_DIR
+        exe = find_tauri()
+        if not exe:
+            raise RuntimeError("yobi-island.exe مش موجود (اعمل build لـ island-tauri)")
+        args, cwd = [exe], TAURI_DIR if os.path.isdir(TAURI_DIR) else os.path.dirname(exe)
         token = secrets.token_hex(16)
         srv = socket.create_server(("127.0.0.1", 0))
         srv.settimeout(self.CONNECT_TIMEOUT_S)
@@ -161,7 +139,7 @@ class ElectronIsland:
             log(f"⚠️ island extras: {e}")
 
     def _init_core(self, log=print):
-        """Everything except the window, so tests can run without Electron."""
+        """Everything except the window, so tests can run without it."""
         self._log = log
         self._lock = threading.Lock()           # socket writes
         self._cv = threading.Condition()        # scheduler
@@ -191,7 +169,7 @@ class ElectronIsland:
         deadline = time.monotonic() + self.CONNECT_TIMEOUT_S
         while time.monotonic() < deadline:
             if self._proc.poll() is not None:
-                raise RuntimeError(f"Electron قفل (exit {self._proc.returncode})")
+                raise RuntimeError(f"الجزيرة قفلت (exit {self._proc.returncode})")
             try:
                 conn, addr = srv.accept()
             except socket.timeout:

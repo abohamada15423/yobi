@@ -1,19 +1,22 @@
 # -*- coding: utf-8 -*-
-"""Try the new Tauri island on screen without starting Yobi:  python try_island_tauri.py
+"""Try the new Tauri island on screen without starting Yobi:  python tools/try_island_tauri.py
 
 Shows the compact island (real music, downloads and mic/camera dots show up live), plays
 Yobi's turn once (listening, thinking, working, done, a reply, a question you can click, a
 mistake), then stays quiet so you can try the panel: hover it, or press Ctrl+Alt+I.
 The menu's "جرّب الحالات" plays the turn again. Ctrl+C or closing the terminal stops it.
 """
+import os
+import sys
 import time
 
-import electron_island as ei
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import electron_island as ei  # noqa: E402
 
 if ei.find_tauri() is None:
     raise SystemExit("Build the Tauri island first: cd island-tauri && npx tauri build")
 
-isl = ei.ElectronIsland(engine="tauri")
+isl = ei.ElectronIsland()
 
 
 def picked(value):

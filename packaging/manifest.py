@@ -8,9 +8,8 @@ import subprocess
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 
-DEV_ONLY = {"test_core.py", "try_island_tauri.py", "agent_v4_hearing.patch", "Yobi_Documentation.html",
-            ".gitignore", "config.hearing.example.json", "requirements.txt"}
-DEV_DIRS = ("island-tauri/", "island/", "tests/", "tools/", "packaging/", "backups/")
+DEV_ONLY = {".gitignore", "config.hearing.example.json", "requirements.txt"}
+DEV_DIRS = ("island-tauri/", "docs/", "tests/", "tools/", "packaging/", "backups/")
 # untracked on purpose (.gitignore) but needed: the offline "يا يوبي" model.
 # NOT models/intent_model.*: it was trained on this PC's apps and would pick them for a friend's words.
 EXTRA = ["models/ya_yobi.onnx"]

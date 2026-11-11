@@ -358,6 +358,51 @@ class TestRecognizer(EngineCase):
         self.assertTrue(rec.wait_for_key(timeout=1.0))
         self.assertFalse(rec.hotkey_event.is_set())
 
+    def test_key_press_then_key_press_ends_the_recording(self):
+        rec = self.make()
+        chimes = []
+        rec.on_hotkey = lambda: chimes.append(rec.key_capturing)
+        # a 0.8 s pause in the middle: silence doesn't end it, only the second press does
+        fake_sd.MIC["source"] = Scenario([(0.2, 0.7, "speech"), (1.5, 2.0, "speech")])
+        rec._on_hotkey()                                    # the wake press
+        self.assertTrue(rec.take_key_press())
+        self.assertFalse(rec.take_key_press())              # once
+        threading.Timer(2.3, rec._on_hotkey).start()        # the second press
+        t = time.time()
+        audio = rec.listen_until_key()
+        self.assertGreater(time.time() - t, 2.1)
+        self.assertGreater(len(audio.frame_data) / 2 / 16000, 2.0)
+        self.assertEqual(chimes, [False, True])             # the agent can tell the two presses apart
+        self.assertFalse(rec.key_capturing)
+        self.assertFalse(rec.hotkey_event.is_set())         # the second press doesn't wake Yobi again
+        self.assertFalse(rec.take_key_press())
+
+    def test_key_recording_with_nothing_said(self):
+        rec = self.make()
+        fake_sd.MIC["source"] = Scenario([])
+        rec._on_hotkey()
+        threading.Timer(0.5, rec._on_hotkey).start()
+        with self.assertRaises(audio_input.sr.WaitTimeoutError):
+            rec.listen_until_key()
+        rec._on_hotkey()                                    # nobody presses again: it gives up by itself
+        t = time.time()
+        with self.assertRaises(audio_input.sr.WaitTimeoutError):
+            rec.listen_until_key(no_speech_timeout=0.6)
+        self.assertLess(time.time() - t, 1.5)
+
+    def test_talk_button_is_not_a_key_press(self):
+        rec = self.make()
+        rec.hotkey_event.set()                              # the island's Talk button
+        self.assertTrue(rec.wait_for_key(timeout=0.5))
+        self.assertFalse(rec.take_key_press())
+
+    def test_failing_chime_still_wakes(self):
+        rec = self.make()
+        rec.on_hotkey = lambda: 1 / 0
+        with self.assertRaises(ZeroDivisionError):
+            rec._on_hotkey()
+        self.assertTrue(rec.hotkey_event.is_set())
+
     def test_stale_wake_event_ignored(self):
         det = wake_word.WakeWordDetector("fake", log=lambda m: None)
         det.event.set(); det.last_time = time.time() - 30

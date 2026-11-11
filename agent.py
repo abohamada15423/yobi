@@ -1295,10 +1295,18 @@ def voice_loop(island, agent, known_targets, listening_enabled):
     if getattr(island, "_tools", None) is not None:
         island._tools.on_wake_key = recognizer.set_hotkey      # the settings window changes it live
     key_chime = [0.0]
+    turn_gen = [0]              # raised when Yobi starts listening: a late "hide" from the turn before is dropped
+    KEY_HINT = "سامعك.. دوس الزرار تاني لما تخلص ⌨️"
 
-    def _key_pressed():         # heard at once, even when the loop is busy or a game covers the island
+    def _key_pressed():         # heard and shown at once, even when the loop is busy
+        if recognizer.key_capturing:        # the second press: done talking
+            island.after(0, lambda: island.set_state("thinking"))
+            return
         key_chime[0] = time.time()
         play_wake()
+        if listening_enabled.is_set() and not context.in_conversation:
+            turn_gen[0] += 1
+            island.after(0, lambda: island.set_state("listening", KEY_HINT))
     recognizer.on_hotkey = _key_pressed
 
     wake_words = CONFIG.get("wake_words",
@@ -2348,12 +2356,14 @@ def voice_loop(island, agent, known_targets, listening_enabled):
             return False
         return True
 
-    def _conversation(first_command=None, first_audio=None):
+    def _conversation(first_command=None, first_audio=None, by_key=False):
+        """by_key: woken by the wake key, so Yobi records until the key is pressed again."""
         nonlocal chat_mode_active
         if time.time() - key_chime[0] > 2:      # the wake key already chimed
             play_wake()
-        island.after(0, lambda: island.set_state("listening"))
+        turn_gen[0] += 1
         context.in_conversation = True
+        island.after(0, lambda: island.set_state("listening", KEY_HINT if by_key else ""))
         addressed.reset()
         chat_mode_active = False
         conv_round = 0
@@ -2373,12 +2383,26 @@ def voice_loop(island, agent, known_targets, listening_enabled):
                 if conv_round > 1:
                     island.after(0, lambda: island.show_listening_soft("سامعك... كمّل 🎤"))
 
-                with mic as source:
-                    listen_timeout = 30 if chat_mode_active else 7
-                    cmd_audio = recognizer.listen(
-                        source, timeout=listen_timeout,
-                        phrase_time_limit=15 if chat_mode_active else 8,
-                    )
+                if by_key:
+                    by_key = False
+                    island.after(0, lambda: island.set_state("listening", KEY_HINT))
+                    cmd_audio = recognizer.listen_until_key()
+                    island.after(0, lambda: island.set_state("thinking"))
+                else:
+                    try:
+                        with mic as source:
+                            listen_timeout = 30 if chat_mode_active else 7
+                            cmd_audio = recognizer.listen(
+                                source, timeout=listen_timeout,
+                                phrase_time_limit=15 if chat_mode_active else 8,
+                                hotkey_wakes=True,
+                            )
+                    except HotkeyPressed:       # the key (or the Talk button) in the middle of a conversation
+                        by_key = recognizer.take_key_press()
+                        conv_round -= 1
+                        if not by_key:
+                            island.after(0, lambda: island.set_state("listening", "سامعك.. اتكلم 🎤"))
+                        continue
 
                 command = transcribe_groq(cmd_audio, prompt_text=_hint())
                 stt_state["low"] = bool(_STT is not None and _STT.last_low)
@@ -2418,10 +2442,13 @@ def voice_loop(island, agent, known_targets, listening_enabled):
             wake_detector.reset()
         play_hide()
 
+        gen = turn_gen[0]
+
         def _hide_when_quiet():
             if _reply_cfg().get("voice"):
                 get_tts_engine().wait_until_done(60)
-            island.after(0, island.end_turn)
+            # the wake key cuts Yobi's voice short: by now he may be listening again
+            island.after(0, lambda: turn_gen[0] == gen and island.end_turn())
 
         threading.Thread(target=_hide_when_quiet, daemon=True).start()
 
@@ -2440,7 +2467,7 @@ def voice_loop(island, agent, known_targets, listening_enabled):
             if key_only:
                 if recognizer.wait_for_key(timeout=1.0):
                     print_ar("⌨️ اتنده بالكيبورد")
-                    _conversation()
+                    _conversation(by_key=recognizer.take_key_press())
                 continue
 
             if recognizer.has_wake_model:
@@ -2448,7 +2475,7 @@ def voice_loop(island, agent, known_targets, listening_enabled):
                     woke = recognizer.wait_for_wake(hotkey_wakes=True, timeout=1.0)
                 except HotkeyPressed:
                     print_ar("⌨️ اتنده بالكيبورد")
-                    _conversation()
+                    _conversation(by_key=recognizer.take_key_press())
                     continue
                 if woke:
                     print_ar(f"👂 سمعت النداء (offline, {recognizer.wake.last_score:.2f})")
@@ -2467,7 +2494,7 @@ def voice_loop(island, agent, known_targets, listening_enabled):
                                                   phrase_time_limit=8, hotkey_wakes=True)
                 except HotkeyPressed:
                     print_ar("⌨️ اتنده بالكيبورد")
-                    _conversation()
+                    _conversation(by_key=recognizer.take_key_press())
                     continue
 
             wake_text = transcribe_local(audio, "ar", wake_model, initial_prompt="يا يوبي، يوبي")

@@ -108,6 +108,9 @@ class VADRecognizer:
 
         self._hotkey = None         # hotkey.Watcher, made on first use
         self.on_hotkey = None       # called the moment the wake key goes down (the agent's chime)
+        self.key_pressed = False    # the wake was the key itself, not the island's Talk button
+        self.key_time = 0.0         # when the key last went down
+        self.key_capturing = False  # listen_until_key() is recording: the next press ends it
         self.set_hotkey(hotkey)
 
     def set_hotkey(self, hotkey):
@@ -163,6 +166,7 @@ class VADRecognizer:
             raise RuntimeError("no wake word model")
         if not hotkey_wakes:
             self.hotkey_event.clear()
+            self.key_pressed = False
         start = time.time()
         if self.wake.event.is_set() and self.wake.last_time < start - 1.0:
             self.wake.event.clear()
@@ -212,6 +216,46 @@ class VADRecognizer:
             self._drop_stale()
         return False
 
+    def take_key_press(self):
+        """True once after the wake key itself was pressed (the island's Talk button sets only
+        the event): the agent then records until the key is pressed again."""
+        pressed, self.key_pressed = self.key_pressed, False
+        return pressed
+
+    def listen_until_key(self, max_seconds=60, no_speech_timeout=10):
+        """Record from the wake key press until the key is pressed again: silence doesn't end
+        it, so a pause to think is fine. `max_seconds` ends it anyway; nothing said within
+        `no_speech_timeout` (or by the second press) raises sr.WaitTimeoutError."""
+        self.hotkey_event.clear()
+        self.key_pressed = False
+        self._keep_from = None
+        pressed_at = self.key_time if time.time() - self.key_time < 5 else time.time()
+        self._drop_before(pressed_at)
+        self.key_capturing = True
+        start = time.time()
+        frames, speech = [], 0
+        try:
+            while not self.hotkey_event.is_set():
+                waited = time.time() - start
+                if waited > max_seconds or (speech < self.min_speech_frames and waited > no_speech_timeout):
+                    break
+                try:
+                    _, frame = self._get(timeout=0.05)
+                except queue.Empty:
+                    continue
+                frames.append(frame)
+                if self._is_speech(frame):
+                    speech += 1
+        finally:
+            self.key_capturing = False
+            self.hotkey_event.clear()
+            self.key_pressed = False
+        if speech < self.min_speech_frames:
+            raise sr.WaitTimeoutError("nothing said before the key was pressed again")
+        if latency is not None:
+            latency.start_turn(time.perf_counter(), speech_ms=speech * FRAME_MS)
+        return sr.AudioData(b"".join(frames), SAMPLE_RATE, SAMPLE_WIDTH)
+
     def _scan_idle_speech(self):
         """Drain old frames while watching for a short spoken wake phrase."""
         if self._is_speaking():
@@ -247,6 +291,7 @@ class VADRecognizer:
         """Block until one utterance is captured."""
         if not hotkey_wakes:
             self.hotkey_event.clear()
+            self.key_pressed = False
         keep_from, self._keep_from = self._keep_from, None
         if keep_from is None:
             if self._wait_for_tts_to_finish(hotkey_wakes):
@@ -345,10 +390,14 @@ class VADRecognizer:
             self._acc_t = t
 
     def _on_hotkey(self):
-        if self.on_hotkey is not None:
-            self.on_hotkey()
-        self._stop_speaking()
-        self.hotkey_event.set()
+        self.key_time = time.time()
+        self.key_pressed = True
+        try:
+            if self.on_hotkey is not None:
+                self.on_hotkey()
+            self._stop_speaking()
+        finally:
+            self.hotkey_event.set()     # a failing chime must not swallow the press
 
     def _drain(self):
         self._replay.clear()

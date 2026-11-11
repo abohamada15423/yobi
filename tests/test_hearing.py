@@ -202,6 +202,49 @@ class TestSTT(unittest.TestCase):
         self.assertTrue(e.looks_romanized("iftah el yutyub"))
         self.assertFalse(e.looks_romanized("افتح valorant"))
 
+    def gemini(self, text="افتح ديسكورد", fail=False):
+        g = FakeGroq(text=text, fail=fail)
+        g.is_gemini, g._groq_stt = True, None       # a Gemini key and no Groq key
+        return g
+
+    def test_gemini_key_alone_is_asked_once(self):
+        g = self.gemini(text="uptah lúlí")
+        e = stt_engine.STTEngine(g, log=lambda m: None)
+        e._local = FakeLocal(); e.local_gpu = False
+        self.assertEqual(e._candidates(None), ["gemini", "local"])
+        self.assertEqual(e.transcribe(self.audio()), "شغل سبوتيفاي")    # romanized: the local model, not Gemini again
+        self.assertEqual(len(g.calls), 1)
+
+    def test_local_on_the_card_goes_first_without_groq(self):
+        g = self.gemini()
+        e = stt_engine.STTEngine(g, log=lambda m: None)
+        e._local = FakeLocal(); e.local_gpu = True
+        self.assertEqual(e._candidates(None), ["local", "gemini"])
+        self.assertEqual(e.transcribe(self.audio()), "شغل سبوتيفاي")
+        self.assertEqual((e.last_engine, len(g.calls)), ("local", 0))
+        self.assertEqual(e._local.kw["beam_size"], 5)
+        self.assertEqual(e._candidates("gemini"), ["gemini", "local"])   # an explicit choice wins
+        real = FakeGroq()                                                # a Groq key: Whisper online stays first
+        e2 = stt_engine.STTEngine(real, log=lambda m: None); e2.local_gpu = True
+        self.assertEqual(e2._candidates(None), ["groq-turbo", "local", "groq-v3"])
+
+    def test_unsure_local_gets_a_second_opinion(self):
+        class Unsure(FakeLocal):
+            def transcribe(self, f, **kw):
+                self.kw = kw
+                class S: text = " افتح ديسكو"; avg_logprob = -1.4; no_speech_prob = 0.1
+                return iter([S()]), None
+        g = self.gemini()
+        e = stt_engine.STTEngine(g, log=lambda m: None)
+        e._local = Unsure(); e.local_gpu = True
+        self.assertEqual(e.transcribe(self.audio()), "افتح ديسكورد")
+        self.assertEqual(e.last_engine, "gemini")
+        self.assertFalse(e.last_low)
+        g.fail = True                                # Gemini is down: the unsure hearing is kept, marked unsure
+        self.assertEqual(e.transcribe(self.audio()), "افتح ديسكو")
+        self.assertEqual(e.last_engine, "local")
+        self.assertTrue(e.last_low)
+
     def test_hallucination_filtered(self):
         e = stt_engine.STTEngine(FakeGroq(text="اشتركوا في القناة"), is_hallucination=lambda t: "اشتركوا" in t, log=lambda m: None)
         self.assertEqual(e.transcribe(self.audio()), "")

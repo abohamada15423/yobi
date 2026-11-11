@@ -607,12 +607,23 @@ class GeminiClient:
 
         wav_bytes = file[1] if isinstance(file, (tuple, list)) else file.read()
         b64_audio = base64.b64encode(wav_bytes).decode("ascii")
-        lang_hint = "Egyptian Arabic" if language == "ar" else "English"
-        sys_inst = (
-            f"Transcribe this spoken {lang_hint} audio clip accurately. "
-            f"Return ONLY the exact spoken words with no extra commentary or punctuation. "
-            f"Context vocabulary: {prompt[:250]}"
-        )
+        if language == "ar":
+            sys_inst = (
+                "You are the speech-to-text of a voice assistant. The speaker gives a short command "
+                "in Egyptian Arabic and may say the English name of an app, a game or a website. "
+                "Write exactly the words that were said and nothing else: Arabic words in Arabic "
+                "letters, English names in English letters. Do not translate, correct, answer or "
+                "explain, and add no punctuation. If there is no clear speech, return nothing. "
+                "Words and names that are often said (use one only if it was really said): "
+                + prompt[:400]
+            )
+        else:
+            sys_inst = (
+                "You are the speech-to-text of a voice assistant. Write exactly the English words "
+                "that were said and nothing else, with no punctuation. If there is no clear speech, "
+                "return nothing. Names that are often said (use one only if it was really said): "
+                + prompt[:400]
+            )
         body = json.dumps({
             "contents": [{
                 "parts": [
@@ -620,16 +631,18 @@ class GeminiClient:
                     {"inline_data": {"mime_type": "audio/wav", "data": b64_audio}},
                 ]
             }],
-            "generationConfig": {"temperature": 0.0, "maxOutputTokens": 120},
+            # room to spare: a model that thinks first spends part of this before the words
+            "generationConfig": {"temperature": 0.0, "maxOutputTokens": 512},
         }).encode("utf-8")
         # a model that's out of quota (429) or busy (503) mustn't leave the command empty: try the next one
+        # (three at most, 10 s each: after that the local Whisper hears it instead of the user waiting minutes)
         res, last_err = None, None
-        for m in self._candidate_models():
+        for m in self._candidate_models()[:3]:
             req = urllib.request.Request(
                 self.NATIVE_URL.format(model=m, key=self.api_key),
                 data=body, headers={"Content-Type": "application/json"}, method="POST")
             try:
-                with urllib.request.urlopen(req, timeout=30) as resp:
+                with urllib.request.urlopen(req, timeout=10) as resp:
                     res = json.loads(resp.read().decode("utf-8"))
                 break
             except urllib.error.HTTPError as e:

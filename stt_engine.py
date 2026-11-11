@@ -5,7 +5,13 @@ STT engine — مين يسمع الأمر: Groq ولا الـ GPU بتاعك.
 Engines:
     groq-turbo : Groq whisper-large-v3-turbo   (fast, online)
     groq-v3    : Groq whisper-large-v3         (most accurate, online)
+    gemini     : Gemini Flash hears the clip   (online; what a Gemini key alone gives)
     local      : faster-whisper on your GPU    (offline, default large-v3-turbo)
+
+With only a Gemini key there is no Groq Whisper: both groq names mean the one "gemini"
+engine, asked once. Then, in "auto", a local Whisper that really runs on the graphics card
+goes first (a fraction of a second, no upload); when it isn't sure of what it heard, Gemini
+hears the clip too.
 
 engine="auto" tries the configured preference order and falls back when a
 backend errors or the internet drops (a small circuit breaker skips Groq
@@ -75,6 +81,7 @@ class STTEngine:
         self.last_conf = None      # {"avg_logprob": float, "no_speech_prob": float}
         self.last_low = False      # True = يوبي مش واثق من اللي سمعه
         self._verbose_ok = True    # لو Groq رفض verbose_json نرجع للعادي
+        self.local_gpu = None      # True once the local model has really run on the graphics card
         self.low_logprob = -0.85
         self.low_no_speech = 0.6
 
@@ -95,18 +102,19 @@ class STTEngine:
         if mark:
             _mark("stt_start")
         last_err = None
-        fallback = None                 # romanized result kept in case nothing better comes
+        fallback = None                 # an unsure result kept in case nothing better comes
         cands = self._candidates(engine)
         i = 0
         while i < len(cands):
             eng = cands[i]
             i += 1
             t0 = time.perf_counter()
+            self.last_conf = None
             try:
                 if eng == "local":
                     text = self._local_transcribe(wav, prompt, lang)
                 else:
-                    text = self._groq_transcribe(wav, GROQ_MODELS[eng], prompt, lang)
+                    text = self._groq_transcribe(wav, GROQ_MODELS.get(eng, GROQ_MODELS["groq-turbo"]), prompt, lang)
             except Exception as e:
                 last_err = e
                 self._record_fail(eng)
@@ -115,33 +123,47 @@ class STTEngine:
             ms = (time.perf_counter() - t0) * 1000
             self.stats.setdefault(eng, []).append(ms)
             self._fail.pop(eng, None)
-            self.last_engine = eng
             text = (text or "").strip()
+            self._log(f"👂 {eng} سمع في {ms:.0f}ms: '{text}'")
             if lang == "ar" and i < len(cands) and self.looks_romanized(text):
                 self._log(f"🔁 الكلام اتكتب بحروف إنجليزي ('{text}') — بعيد السمع بموديل تاني")
-                fallback = fallback or text
+                fallback = fallback or (text, eng, self.last_conf)
                 # the full large-v3 model is the best at Arabic script → try it next
                 if "groq-v3" in cands[i:]:
                     cands.remove("groq-v3")
                     cands.insert(i, "groq-v3")
                 continue
-            if fallback and lang == "ar" and self.looks_romanized(text):
-                text = fallback
-            if self.vocab is not None:
-                text = self.vocab.apply_fixes(text)
-            text = text.lower()
-            if mark:
-                _mark("stt_done", info=eng)
-            if self._is_hallu(text):
-                self._log(f"🚫 تجاهلت هالوسينيشن Whisper: '{text}'")
-                return ""
-            self.last_low = self.is_low_confidence(text)
-            if self.last_low:
-                self._log(f"🤔 مش واثق من اللي سمعته: '{text}' ({self.last_conf})")
-            return text
+            # the local model isn't sure and a cloud one is next: a second opinion costs a moment
+            # only on the unclear clips
+            if (eng == "local" and text and fallback is None and i < len(cands) and cands[i] != "local"
+                    and self.is_low_confidence(text)):
+                self._log("🔁 الموديل المحلي مش واثق — بسمعها بالموديل التاني كمان")
+                fallback = (text, eng, self.last_conf)
+                continue
+            if fallback and (not text or (lang == "ar" and self.looks_romanized(text))):
+                text, eng, self.last_conf = fallback
+            return self._finish(text, eng, mark)
+        if fallback:                    # the second opinion failed: the unsure one is all there is
+            text, eng, self.last_conf = fallback
+            return self._finish(text, eng, mark)
         if last_err is not None:
             self._log(f"⚠️ كل محركات السمع فشلت: {last_err}")
         return ""
+
+    def _finish(self, text, eng, mark):
+        self.last_engine = eng
+        if self.vocab is not None:
+            text = self.vocab.apply_fixes(text)
+        text = text.lower()
+        if mark:
+            _mark("stt_done", info=eng)
+        if self._is_hallu(text):
+            self._log(f"🚫 تجاهلت هالوسينيشن Whisper: '{text}'")
+            return ""
+        self.last_low = self.is_low_confidence(text)
+        if self.last_low:
+            self._log(f"🤔 مش واثق من اللي سمعته: '{text}' ({self.last_conf})")
+        return text
 
     def is_low_confidence(self, text=None):
         """True لو Whisper نفسه مش واثق، أو النص طالع بحروف غريبة
@@ -207,17 +229,27 @@ class STTEngine:
             threading.Thread(target=self._get_local, daemon=True).start()
 
     # ------------------------------------------------------------ internals
+    @property
+    def gemini_only(self):
+        """The cloud client is Gemini with no Groq key behind it: no Whisper online."""
+        return bool(getattr(self.groq, "is_gemini", False) and getattr(self.groq, "_groq_stt", None) is None)
+
     def _candidates(self, engine):
         eng = engine or self.engine
-        if eng and eng != "auto":
-            order = [eng] + [e for e in self.order if e != eng]
-            # explicit choice still falls back if it fails
+        auto = not eng or eng == "auto"
+        order = list(self.order) if auto else [eng] + [e for e in self.order if e != eng]
+        # an explicit choice still falls back if it fails
+        if self.gemini_only:            # both groq names are the same Gemini call: ask it once
+            order = ["gemini" if e in GROQ_MODELS else e for e in order]
+            if auto and self.local_gpu and "local" in order:
+                order = ["local"] + order
         else:
-            order = list(self.order)
+            order = [e for e in order if e != "gemini"]
+        order = list(dict.fromkeys(order))
         now = time.time()
         out = []
         for e in order:
-            if e not in ("local",) and e not in GROQ_MODELS:
+            if e not in ("local", "gemini") and e not in GROQ_MODELS:
                 continue
             if e != "local" and self.groq is None:
                 continue
@@ -266,19 +298,29 @@ class STTEngine:
                 return self._local
             from faster_whisper import WhisperModel
             try:
-                self._local = WhisperModel(self.local_model_name, device=self.local_device,
-                                           compute_type=self.local_compute)
+                m = WhisperModel(self.local_model_name, device=self.local_device,
+                                 compute_type=self.local_compute)
+                if self.local_device != "cpu":
+                    # the GPU libraries load on first use: a PC with a card but without them
+                    # (cublas...) fails here, once, not on every command later
+                    import numpy as np
+                    list(m.transcribe(np.zeros(8000, dtype=np.float32), language="ar", beam_size=1)[0])
+                self._local, self.local_gpu = m, self.local_device != "cpu"
             except Exception as e:
                 self._log(f"⚠️ مش قادر أشغل {self.local_model_name} على {self.local_device} "
                           f"({str(e)[:80]}) — هجرب الـ CPU")
                 self._local = WhisperModel(
                     "small" if "large" in self.local_model_name else self.local_model_name,
                     device="cpu", compute_type="int8")
+                self.local_gpu = False
+            if self.local_gpu:
+                self._log(f"⚡ السمع المحلي ({self.local_model_name}) شغال على كارت الشاشة")
             return self._local
 
     def _local_transcribe(self, wav, prompt, lang):
         model = self._get_local()
-        kwargs = dict(language=lang, beam_size=1, vad_filter=True,
+        # a wider search hears names better; on the card it costs next to nothing
+        kwargs = dict(language=lang, beam_size=5 if self.local_gpu else 1, vad_filter=True,
                       initial_prompt=prompt or None, condition_on_previous_text=False)
         if self.vocab is not None:
             hw = self.vocab.hotwords()

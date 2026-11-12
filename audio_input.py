@@ -88,6 +88,7 @@ class VADRecognizer:
         self._acc = np.zeros(0, np.int16)
         self._acc_t = 0.0
         self._keep_from = None
+        self._heard_until = None    # the time of the last frame of the last clip handed out
         self._stream = None
 
         # Track short speech bursts while waiting for ONNX wake word
@@ -216,6 +217,13 @@ class VADRecognizer:
             self._drop_stale()
         return False
 
+    def keep_what_follows(self):
+        """The clip just handed out was only the wake word ("يا يوبي", a breath, then the
+        command): the next listen() starts where it ended, so what was said while the wake
+        word was being checked isn't thrown away as old audio."""
+        if self._heard_until is not None:
+            self._keep_from = self._heard_until
+
     def take_key_press(self):
         """True once after the wake key itself was pressed (the island's Talk button sets only
         the event): the agent then records until the key is pressed again."""
@@ -280,6 +288,7 @@ class VADRecognizer:
                 if self._idle_silence >= self.end_silence_frames:
                     speech_len = len(self._idle_voiced) - self._idle_silence
                     if self.min_speech_frames <= speech_len <= max_idle_frames:
+                        self._heard_until = t
                         pcm = b"".join(self._idle_voiced)
                         self._wake_candidate = sr.AudioData(pcm, SAMPLE_RATE, SAMPLE_WIDTH)
                     self._idle_voiced.clear()
@@ -312,7 +321,7 @@ class VADRecognizer:
                 self.hotkey_event.clear()
                 raise HotkeyPressed()
             try:
-                _, frame = self._get(timeout=0.1)
+                t_frame, frame = self._get(timeout=0.1)
             except queue.Empty:
                 frame = None
 
@@ -346,6 +355,7 @@ class VADRecognizer:
             remaining = None if timeout is None else max(0.5, timeout - (time.time() - start))
             return self.listen(source, remaining, phrase_time_limit, hotkey_wakes)
 
+        self._heard_until = t_frame
         if latency is not None:
             latency.start_turn(time.perf_counter(),
                                speech_ms=(len(voiced) - silence_run) * FRAME_MS)

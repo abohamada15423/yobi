@@ -446,6 +446,17 @@ class TestRecognizer(EngineCase):
             rec._on_hotkey()
         self.assertTrue(rec.hotkey_event.is_set())
 
+    def test_command_after_a_pause_survives_the_wake_check(self):
+        # "يا يوبي" ... a breath ... the command, while Whisper is still checking the wake word
+        rec = self.make()
+        fake_sd.MIC["source"] = Scenario([(0.2, 0.9, "speech"), (1.8, 2.8, "speech")])
+        wake = rec.listen(timeout=3, phrase_time_limit=8)
+        self.assertLess(len(wake.frame_data) / 2 / 16000, 1.6)      # the pause ended the first clip
+        time.sleep(1.6)                                             # the wake check; the command is over by now
+        rec.keep_what_follows()
+        cmd = rec.listen(timeout=2, phrase_time_limit=8)
+        self.assertGreater(len(cmd.frame_data) / 2 / 16000, 0.9)    # the whole command, not thrown away as old audio
+
     def test_stale_wake_event_ignored(self):
         det = wake_word.WakeWordDetector("fake", log=lambda m: None)
         det.event.set(); det.last_time = time.time() - 30

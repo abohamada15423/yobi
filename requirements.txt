@@ -3,6 +3,7 @@
 # ── Brain & speech ───────────────────────────
 groq>=0.11
 faster-whisper>=1.0
+av<16                        # newer PyAV breaks faster-whisper's audio reading (every local hearing fails)
 SpeechRecognition>=3.10      # only used for AudioData now (no PyAudio needed)
 edge-tts>=7.3.1                # 7.2.x gets 403 from Microsoft since Nov 2026
 pygame>=2.5

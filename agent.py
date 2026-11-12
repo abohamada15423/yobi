@@ -2533,6 +2533,8 @@ def voice_loop(island, agent, known_targets, listening_enabled):
                 else:
                     _record_heard(audio, first_command)
 
+            if first_command is None and hasattr(recognizer, "keep_what_follows"):
+                recognizer.keep_what_follows()      # "يا يوبي" ... a breath ... the command
             _conversation(first_command, audio if first_command else None)
 
         except sr.WaitTimeoutError:

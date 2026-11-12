@@ -5,6 +5,7 @@
     pip install torch transformers ctranslate2
     python tools/make_voice_data.py --n 3000 --noise              داتا متولّدة
     python tools/export_dataset.py --export                       صوتك اللي يوبي سجّله (صحّح true_text)
+    python tools/label_recordings.py my_recordings                تسجيلات عندك من غير نصوص (راجع النص)
     python tools/finetune_whisper.py --data voice_data --real my_recordings data/export/whisper_review.csv
 
 This is fine-tuning: it starts from a Whisper that already knows Arabic (--base) and teaches

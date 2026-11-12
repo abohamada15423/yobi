@@ -7,6 +7,7 @@ login_calibration.json
 # ── your personal data and voice ───────────────────────────────────
 data/
 wake_data/
+voice_data/
 wake_data.zip
 wake_data.rar
 chat_history.json

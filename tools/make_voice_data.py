@@ -3,12 +3,15 @@
 اعمل داتا صوت لأوامر يوبي من غير ما حد يسجّل: جمل أوامر مصرية بصوت Edge (نفس صوت يوبي).
 
     python tools/make_voice_data.py --n 400                 400 مقطع في voice_data/
-    python tools/make_voice_data.py --n 2000 --noise        ومعاهم نسخ بدوشة أوضة
+    python tools/make_voice_data.py --n 2500 --noise        ومعاهم نسخ بدوشة أوضة
+    python tools/make_voice_data.py --n 2500 --apps installed_apps_cache.json    بأسماء برامجك إنت
     python tools/stt_benchmark.py --clips voice_data --engines local --show
 
-Each clip is a command built from a template and a name (an app, a game, a site), said by
-one of the Egyptian voices at a random speed, with or without "يا يوبي" first. The name is
-*said* the Egyptian way ("ديسكورد") and *written* the way Yobi wants to read it ("Discord").
+Each clip is a command built from a template and a name (an app, a game, a site), or an
+everyday sentence, said by one of Edge's 32 Arabic voices (the two Egyptian ones half the
+time) at a random speed and pitch, with or without "يا يوبي" first. The name is *said* the
+Egyptian way ("ديسكورد") and *written* the way Yobi wants to read it ("Discord"); a name
+from --apps that has no Arabic spelling here is read as it is written.
 
 Output (same layout as tools/record_clips.py bench, so stt_benchmark.py reads it):
     voice_data/*.wav            16 kHz mono
@@ -16,7 +19,7 @@ Output (same layout as tools/record_clips.py bench, so stt_benchmark.py reads it
 
 What this data is good for: comparing hearing engines and settings on the same sentences,
 and as extra sentences when fine-tuning. What it is not: a replacement for real voices.
-Two synthetic voices teach a model those two voices; the clips Yobi records of you
+Synthetic voices teach a model the sentences and the names; the clips Yobi records of you
 (data/commands, tools/export_dataset.py) are the ones that teach it your voice.
 """
 import argparse
@@ -29,8 +32,14 @@ import wave
 
 import numpy as np
 
-VOICES = ["ar-EG-ShakirNeural", "ar-EG-SalmaNeural"]
-RATES = ["-12%", "-5%", "+0%", "+8%", "+18%"]
+EGYPTIAN = ["ar-EG-ShakirNeural", "ar-EG-SalmaNeural"]
+OTHERS = [f"ar-{c}-{n}Neural" for c, names in {
+    "SA": "Hamed Zariyah", "AE": "Hamdan Fatima", "JO": "Taim Sana", "LB": "Rami Layla", "SY": "Laith Amany",
+    "IQ": "Bassel Rana", "KW": "Fahed Noura", "QA": "Moaz Amal", "BH": "Ali Laila", "OM": "Abdullah Aysha",
+    "YE": "Saleh Maryam", "LY": "Omar Iman", "TN": "Hedi Reem", "DZ": "Ismael Amina", "MA": "Jamal Mouna",
+}.items() for n in names.split()]
+RATES = ["-15%", "-8%", "-3%", "+0%", "+6%", "+12%", "+20%"]
+PITCHES = ["-12Hz", "-6Hz", "+0Hz", "+0Hz", "+6Hz", "+12Hz"]
 
 # said → written
 NAMES = {
@@ -47,6 +56,17 @@ NAMES = {
 WITH_NAME = [
     "افتح {}", "افتحلي {}", "شغل {}", "شغللي {}", "اقفل {}", "اقفللي {}", "عايز افتح {}", "ممكن تفتح {}",
     "افتح {} بسرعة", "شغل {} لو سمحت", "اقفل {} خالص", "افتح موقع {}", "دور على {} في جوجل", "نزل {}",
+    "افتحلي {} بقى", "يلا شغل {}", "عايز العب {}", "هات {}", "افتح {} تاني", "اقفل {} دلوقتي", "شغل {} على طول",
+    "ممكن تقفل {}", "ادخل على {}", "افتح {} وعلي الصوت", "اقفل {} وافتح {}", "لا أقصد {}", "علم نفسك إن {} يعني {}",
+]
+# everyday talk, so a model trained on this still hears a question or a chat, not only commands
+TALK = [
+    "عامل ايه النهارده", "احكيلي نكتة", "انت مين", "تقدر تعمل ايه", "ايه رأيك في اللعبة دي", "انا زهقان اعمل ايه",
+    "عايز اتعلم برمجة ابدأ منين", "ايه احسن لعبة العبها مع صحابي", "ليه الجهاز بطيء كده", "ازاي اسرع النت عندي",
+    "ترجملي الكلمة دي", "اكتبلي رسالة لصاحبي", "ايه اخبار الماتش امبارح", "مين كسب الدوري السنة اللي فاتت",
+    "عايز اكلة سهلة اعملها", "صحيني الساعة سبعة الصبح", "انا تعبان وعايز انام", "شكرا يا يوبي تسلم",
+    "مش فاهم قصدك ايه", "قول تاني كده", "استنى شوية", "خلاص مش عايز حاجة", "كمل اللي كنت بتقوله", "ايه الجديد النهارده",
+    "فاضل كام على رمضان", "كام في كام يساوي كام", "اشرحلي ده ببساطة", "هو ده صح ولا غلط", "طب وبعدين", "تمام كده حلو",
 ]
 PLAIN = [
     "علي الصوت", "علي الصوت شوية", "وطي الصوت", "وطي الصوت شوية", "اكتم الصوت", "شغل الصوت تاني",
@@ -59,17 +79,41 @@ PLAIN = [
 ]
 
 
-def sentences(rng, n):
-    """n (spoken, written) pairs: mostly commands with a name, the rest fixed commands."""
+def load_apps(path):
+    """Names from a file: a text file with a name on each line, or a JSON list or dict of names
+    (Yobi's installed_apps_cache.json). They are said as written."""
+    import json
+    with open(path, encoding="utf-8") as f:
+        raw = f.read()
+    try:
+        data = json.loads(raw)
+        found = list(data) if isinstance(data, (list, dict)) else []
+    except ValueError:
+        found = raw.splitlines()
+    known = {w.lower() for w in NAMES.values()}
     out = []
-    names = list(NAMES.items())
+    for name in found:
+        name = " ".join(str(name).split())
+        if 2 <= len(name) <= 30 and name.lower() not in known and not any(ch in name for ch in "\\/:{}"):
+            known.add(name.lower())
+            out.append((name, name))
+    return out
+
+
+def sentences(rng, n, extra=()):
+    """n (spoken, written) pairs: mostly commands with a name, then fixed commands, then talk."""
+    out = []
+    names = list(NAMES.items()) + list(extra)
     while len(out) < n:
-        if rng.random() < 0.65:
-            said, written = rng.choice(names)
+        r = rng.random()
+        if r < 0.6:
             t = rng.choice(WITH_NAME)
-            out.append((t.format(said), t.format(written)))
+            picked = rng.sample(names, t.count("{}"))
+            if t.startswith("علم نفسك"):            # "X means Y": the same thing said and written
+                picked = [(picked[0][0], picked[0][0]), (picked[1][0], picked[1][1])]
+            out.append((t.format(*[p[0] for p in picked]), t.format(*[p[1] for p in picked])))
         else:
-            s = rng.choice(PLAIN)
+            s = rng.choice(PLAIN if r < 0.85 else TALK)
             out.append((s, s))
     return out
 
@@ -96,10 +140,10 @@ def save_wav(path, pcm):
         w.writeframes(pcm.tobytes())
 
 
-async def speak(text, voice, rate, proxy):
+async def speak(text, voice, rate, pitch, proxy):
     import edge_tts
     buf = bytearray()
-    async for chunk in edge_tts.Communicate(text, voice, rate=rate, proxy=proxy).stream():
+    async for chunk in edge_tts.Communicate(text, voice, rate=rate, pitch=pitch, proxy=proxy).stream():
         if chunk["type"] == "audio":
             buf += chunk["data"]
     return bytes(buf)
@@ -112,7 +156,8 @@ async def main():
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--wake", type=float, default=0.3, help="نسبة الجمل اللي قبلها «يا يوبي»")
     ap.add_argument("--noise", action="store_true", help="نسخة تانية من كل مقطع بدوشة أوضة")
-    ap.add_argument("--voices", nargs="+", default=VOICES)
+    ap.add_argument("--voices", nargs="+", default=None, help="أصوات معينة بس (الافتراضي: الـ 32 صوت عربي)")
+    ap.add_argument("--apps", default=None, help="ملف فيه أسماء برامجك (سطر لكل اسم، أو installed_apps_cache.json)")
     args = ap.parse_args()
 
     rng, nrng = random.Random(args.seed), np.random.default_rng(args.seed)
@@ -126,18 +171,22 @@ async def main():
     meta = open(meta_path, "a", encoding="utf-8", newline="")
     out = csv.writer(meta)
     if not done:
-        out.writerow(["file", "text", "spoken", "voice", "rate"])
+        out.writerow(["file", "text", "spoken", "voice", "rate", "pitch"])
+    extra = load_apps(args.apps) if args.apps else []
+    if extra:
+        print(f"📋 {len(extra)} اسم من {args.apps}")
 
     made = failed = 0
-    for i, (said, written) in enumerate(sentences(rng, args.n)):
-        voice, rate = rng.choice(args.voices), rng.choice(RATES)
+    for i, (said, written) in enumerate(sentences(rng, args.n, extra)):
+        voice = rng.choice(args.voices) if args.voices else rng.choice(EGYPTIAN if rng.random() < 0.5 else OTHERS)
+        rate, pitch = rng.choice(RATES), rng.choice(PITCHES)
         if rng.random() < args.wake:
             said, written = "يا يوبي، " + said, "يا يوبي " + written
         name = f"s{args.seed}_{i:05d}.wav"
         if name in done:
             continue
         try:
-            pcm = to_pcm16k(await speak(said, voice, rate, proxy))
+            pcm = to_pcm16k(await speak(said, voice, rate, pitch, proxy))
         except Exception as e:
             failed += 1
             print(f"⚠️ {name}: {str(e)[:100]}")
@@ -145,12 +194,12 @@ async def main():
                 sys.exit("الصوت مش بيتولّد — النت شغال؟ (pip install edge-tts miniaudio)")
             continue
         save_wav(os.path.join(args.out, name), pcm)
-        out.writerow([name, written, said, voice, rate])
+        out.writerow([name, written, said, voice, rate, pitch])
         if args.noise:
             snr = rng.choice([20, 15, 10])
             noisy = name[:-4] + f"_n{snr}.wav"
             save_wav(os.path.join(args.out, noisy), with_noise(pcm, nrng, snr))
-            out.writerow([noisy, written, said, voice, rate])
+            out.writerow([noisy, written, said, voice, rate, pitch])
         made += 1
         if made % 50 == 0:
             meta.flush()

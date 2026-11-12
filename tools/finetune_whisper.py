@@ -5,17 +5,22 @@
     pip install torch transformers ctranslate2
     python tools/make_voice_data.py --n 3000 --noise              داتا متولّدة
     python tools/export_dataset.py --export                       صوتك اللي يوبي سجّله (صحّح true_text)
-    python tools/finetune_whisper.py --data voice_data data/export/whisper_review.csv
+    python tools/finetune_whisper.py --data voice_data --real my_recordings data/export/whisper_review.csv
 
 This is fine-tuning: it starts from a Whisper that already knows Arabic (--base) and teaches
 it Yobi's sentences, the names of your apps and games, and - with your own clips - your voice.
 A model trained from nothing on generated voices would only know those voices.
 
---data takes folders with a metadata.csv (file,text: tools/make_voice_data.py, record_clips.py
-bench) and whisper_review.csv files from export_dataset.py (rows with an empty true_text are
-skipped). Your own clips are the ones that count: generated voices alone teach the names, not
-how you say them. One clip in ten is held back and never trained on; the error on those is
-printed before and after each round, and the best round is kept.
+--data and --real take folders with a metadata.csv (file,text: tools/make_voice_data.py,
+record_clips.py bench) and whisper_review.csv files from export_dataset.py (rows with an empty
+true_text are skipped). Clips can be wav, mp3, m4a, ogg... at any sample rate.
+
+--real is for clips of real people (you, your friends). They are the ones that count:
+generated voices teach the names, not how people say them. So with --real, the clips held
+back for testing are real ones only (one in five, never trained on), and each real clip left
+for training is used --real-weight times (3) so a few hundred aren't lost among thousands of
+generated ones. Without --real, one clip in ten of --data is held back. The error on the
+held-back clips is printed before training and after each round, and the best round is kept.
 
 Needs a graphics card for a small or larger base (minutes per round); on a CPU only --base
 openai/whisper-tiny or whisper-base is practical.
@@ -54,10 +59,15 @@ def load_rows(sources):
 
 
 def read_wav(path):
-    with wave.open(path) as w:
-        if w.getframerate() != 16000 or w.getnchannels() != 1 or w.getsampwidth() != 2:
-            raise ValueError("not 16 kHz mono 16-bit")
-        return np.frombuffer(w.readframes(w.getnframes()), np.int16).astype(np.float32) / 32768
+    """Any audio file as 16 kHz mono float32 (the generated clips are read directly)."""
+    try:
+        with wave.open(path) as w:
+            if w.getframerate() == 16000 and w.getnchannels() == 1 and w.getsampwidth() == 2:
+                return np.frombuffer(w.readframes(w.getnframes()), np.int16).astype(np.float32) / 32768
+    except (wave.Error, EOFError):
+        pass
+    from faster_whisper.audio import decode_audio
+    return decode_audio(path, sampling_rate=16000)
 
 
 def norm(t):
@@ -78,7 +88,9 @@ def cer(a, b):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--data", nargs="+", required=True)
+    ap.add_argument("--data", nargs="+", default=[], help="مقاطع متولّدة")
+    ap.add_argument("--real", nargs="+", default=[], help="تسجيلات ناس حقيقية: الاختبار منها هي بس")
+    ap.add_argument("--real-weight", type=int, default=3)
     ap.add_argument("--base", default="openai/whisper-small", help="الموديل اللي نبدأ منه (اسم على Hugging Face أو فولدر)")
     ap.add_argument("--out", default=os.path.join(_ROOT, "models", "yobi-whisper"))
     ap.add_argument("--epochs", type=int, default=3)
@@ -92,14 +104,20 @@ def main():
     import torch
     from transformers import WhisperForConditionalGeneration, WhisperProcessor
 
-    rows = load_rows(args.data)
+    rows, real = load_rows(args.data), load_rows(args.real)
     random.Random(args.seed).shuffle(rows)
+    random.Random(args.seed).shuffle(real)
     if args.max_clips:
-        rows = rows[:args.max_clips]
-    if len(rows) < 20:
-        sys.exit(f"{len(rows)} مقطع بس — محتاج داتا أكتر")
-    n_val = max(5, len(rows) // 10)
-    val, train = rows[:n_val], rows[n_val:]
+        rows, real = rows[:args.max_clips], real[:args.max_clips]
+    if len(rows) + len(real) < 20:
+        sys.exit(f"{len(rows) + len(real)} مقطع بس — محتاج داتا أكتر")
+    if real:
+        n_val = max(5, len(real) // 5)
+        val, train = real[:n_val], rows + real[n_val:] * max(1, args.real_weight)
+        print(f"🎙️ {len(real)} تسجيل حقيقي: {n_val} للاختبار، والباقي في التدريب ×{args.real_weight}")
+    else:
+        n_val = max(5, len(rows) // 10)
+        val, train = rows[:n_val], rows[n_val:]
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"🎧 {len(train)} مقطع تدريب، {len(val)} للاختبار | {args.base} على {device}")
 

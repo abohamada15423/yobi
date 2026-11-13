@@ -111,7 +111,8 @@ def copy_app():
 
 
 REQUIRED = ("agent.py", "launcher.pyw", "first_run.py", "config.example.json", "install.ps1", "uninstall.ps1", "shortcuts.py",
-            "yobi.ico", "bin/yobi-island.exe", "models/ya_yobi.onnx")
+            "yobi.ico", "bin/yobi-island.exe", "models/ya_yobi.onnx",
+            "models/yobi-whisper/model.bin")
 
 
 def check_clean():
@@ -120,7 +121,7 @@ def check_clean():
     for d, _dirs, names in os.walk(APP):
         for n in names:
             p = os.path.join(d, n)
-            if n in NEVER:
+            if n in NEVER and os.path.basename(d) != "yobi-whisper":      # the model's own config.json
                 bad.append(p)
             elif n.endswith((".py", ".json", ".txt", ".md", ".ps1", ".pyw")):
                 with open(p, encoding="utf-8", errors="ignore") as fh:

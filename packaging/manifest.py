@@ -12,7 +12,9 @@ DEV_ONLY = {".gitignore", "config.hearing.example.json", "requirements.txt"}
 DEV_DIRS = ("island-tauri/", "docs/", "tests/", "tools/", "packaging/", "backups/")
 # untracked on purpose (.gitignore) but needed: the offline "يا يوبي" model.
 # NOT models/intent_model.*: it was trained on this PC's apps and would pick them for a friend's words.
-EXTRA = ["models/ya_yobi.onnx"]
+EXTRA = ["models/ya_yobi.onnx"] + [
+    # the hearing model trained on Yobi's commands (tools/finetune_whisper.py); agent.py uses it for "small"
+    "models/yobi-whisper/" + f for f in ("model.bin", "config.json", "preprocessor_config.json", "tokenizer.json", "vocabulary.json")]
 # personal files that must never be in a build, checked again after copying
 NEVER = {".env", "config.json", "chat_history.json", "companion_data.json", "game_stats.json",
          "learned_commands.json", "learning_data.json", "usage_patterns.json", "vocab.json",

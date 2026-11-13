@@ -1256,6 +1256,12 @@ def voice_loop(island, agent, known_targets, listening_enabled):
                               targets_source=lambda: agent.catalog.display_names(
                                   limit=80, prefer=list(vocab.usage) if vocab else None))
 
+    # the model shipped with Yobi (trained on its commands) takes the place of the stock "small"
+    # an installed config asks for
+    _own_whisper = os.path.join(_here, "models", "yobi-whisper")
+    if H["stt_local_model"] == "small" and os.path.isfile(os.path.join(_own_whisper, "model.bin")):
+        H["stt_local_model"] = _own_whisper
+
     if STTEngine is not None:
         _STT = STTEngine(
             groq_client, engine=H["stt_engine"], order=H["stt_order"],
@@ -2512,8 +2518,9 @@ def voice_loop(island, agent, known_targets, listening_enabled):
 
             # no prompt: with «يا يوبي» as a prompt Whisper small writes it for noise and any short phrase
             wake_text = transcribe_local(audio, "ar", wake_model)
-            # the second opinion is the hearing engine; a local one trained on wake calls hears them in noise
-            if not _has_wake(wake_text) and H["stt_engine"] != "local":
+            # the second opinion is for Groq only: without it the hearing engine is the local model,
+            # and one trained on wake calls hears them in noise
+            if not _has_wake(wake_text) and H["stt_engine"] != "local" and _groq_stt_only is not None:
                 # Quick Groq Turbo check in case local small/base model misheard "يوبي"
                 wake_text_g = transcribe_groq(audio, prompt_text="يا يوبي، يوبي، افتح، شغل")
                 if wake_text_g:

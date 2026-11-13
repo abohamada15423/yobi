@@ -103,7 +103,8 @@ def main():
         for i, c in enumerate(listen, 1):
             try:
                 segs, _ = model.transcribe(os.path.join(args.folder, c), language="ar", beam_size=5,
-                                           vad_filter=True, initial_prompt=prompt,
+                                           # prompt and hotwords together make it chant the names on short clips
+                                           vad_filter=True, initial_prompt=None if hot else prompt,
                                            hotwords=hot or None, condition_on_previous_text=False)
                 segs = list(segs)
             except Exception as e:

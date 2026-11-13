@@ -2510,8 +2510,10 @@ def voice_loop(island, agent, known_targets, listening_enabled):
                     _conversation(by_key=recognizer.take_key_press())
                     continue
 
-            wake_text = transcribe_local(audio, "ar", wake_model, initial_prompt="يا يوبي، يوبي")
-            if not _has_wake(wake_text):
+            # no prompt: with «يا يوبي» as a prompt Whisper small writes it for noise and any short phrase
+            wake_text = transcribe_local(audio, "ar", wake_model)
+            # the second opinion is the hearing engine; a local one trained on wake calls hears them in noise
+            if not _has_wake(wake_text) and H["stt_engine"] != "local":
                 # Quick Groq Turbo check in case local small/base model misheard "يوبي"
                 wake_text_g = transcribe_groq(audio, prompt_text="يا يوبي، يوبي، افتح، شغل")
                 if wake_text_g:

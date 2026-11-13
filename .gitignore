@@ -29,6 +29,7 @@ models/*.onnx
 models/*.joblib
 models/intent_model.json
 models/local_brain.joblib
+models/yobi-whisper*/
 
 # caches Yobi rebuilds by itself
 installed_apps_cache.json

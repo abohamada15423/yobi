@@ -23,6 +23,10 @@ for training is used --real-weight times (3) so a few hundred aren't lost among 
 generated ones. Without --real, one clip in ten of --data is held back. The error on the
 held-back clips is printed before training and after each round, and the best round is kept.
 
+--noise is for clips where nobody speaks (the room, a fan): their text is nothing. Without them
+a model that was shown many wake calls writes the wake call for anything unclear. A fifth is held
+back with made noise, and "noise heard as words" is printed next to the error and counted in it.
+
 Needs a graphics card for a small or larger base (minutes per round); on a CPU only --base
 openai/whisper-tiny or whisper-base is practical.
 
@@ -42,7 +46,8 @@ import numpy as np
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def load_rows(sources):
+def load_rows(sources, empty=False):
+    """(path, text) of every clip that has a text; empty=True is for noise, whose text is nothing."""
     rows = []
     for src in sources:
         if os.path.isdir(src):
@@ -54,13 +59,28 @@ def load_rows(sources):
             for r in csv.DictReader(f):
                 path = r.get("wav") or os.path.join(folder, r.get("file") or "")
                 text = (r.get("true_text") if "true_text" in r else r.get("text") or "").strip()
-                if text and os.path.isfile(path):
-                    rows.append((path, text))
+                if (text or empty) and os.path.isfile(path):
+                    rows.append((path, "" if empty else text))
     return rows
+
+
+def made_noise(n, seed):
+    """n clips of nothing said: silence, hiss and hum at many levels, 1 to 5 seconds."""
+    rng = np.random.default_rng(seed)
+    out = []
+    for _ in range(n):
+        x = rng.standard_normal(int(rng.uniform(1, 5) * 16000)).astype(np.float32)
+        if rng.random() < 0.6:                                   # duller than white: fans, a PC
+            x = np.convolve(x, np.ones(int(rng.integers(2, 40))) / 8, mode="same")
+        x *= 10 ** rng.uniform(-4, -1) / (float(np.abs(x).max()) or 1.0) * float(rng.random() > 0.1)
+        out.append((x.astype(np.float32), ""))
+    return out
 
 
 def read_wav(path):
     """Any audio file as 16 kHz mono float32 (the generated clips are read directly)."""
+    if not isinstance(path, str):
+        return path
     try:
         with wave.open(path) as w:
             if w.getframerate() == 16000 and w.getnchannels() == 1 and w.getsampwidth() == 2:
@@ -92,6 +112,8 @@ def main():
     ap.add_argument("--data", nargs="+", default=[], help="مقاطع متولّدة")
     ap.add_argument("--real", nargs="+", default=[], help="تسجيلات ناس حقيقية: الاختبار منها هي بس")
     ap.add_argument("--real-weight", type=int, default=3)
+    ap.add_argument("--noise", nargs="+", default=[], help="مقاطع مفيهاش كلام (دوشة الأوضة): نصها فاضي")
+    ap.add_argument("--wake-text", default="يا يوبي", help="التسجيل الحقيقي اللي نصه كده بيتستخدم مرة واحدة")
     ap.add_argument("--base", default="openai/whisper-small", help="الموديل اللي نبدأ منه (اسم على Hugging Face أو فولدر)")
     ap.add_argument("--out", default=os.path.join(_ROOT, "models", "yobi-whisper"))
     ap.add_argument("--epochs", type=int, default=3)
@@ -114,11 +136,20 @@ def main():
         sys.exit(f"{len(rows) + len(real)} مقطع بس — محتاج داتا أكتر")
     if real:
         n_val = max(5, len(real) // 5)
-        val, train = real[:n_val], rows + real[n_val:] * max(1, args.real_weight)
-        print(f"🎙️ {len(real)} تسجيل حقيقي: {n_val} للاختبار، والباقي في التدريب ×{args.real_weight}")
+        # the wake call once: hundreds of copies of one short phrase teach the model to write it for anything unclear
+        val, train = real[:n_val], rows + [r for r in real[n_val:] for _ in range(
+            1 if norm(r[1]) == norm(args.wake_text) else max(1, args.real_weight))]
+        print(f"🎙️ {len(real)} تسجيل حقيقي: {n_val} للاختبار، والباقي في التدريب ×{args.real_weight} («{args.wake_text}» مرة واحدة)")
     else:
         n_val = max(5, len(rows) // 10)
         val, train = rows[:n_val], rows[n_val:]
+    # nothing said → nothing written. Held back: a fifth of the room clips and made noise of another seed
+    room = load_rows(args.noise, empty=True)
+    random.Random(args.seed).shuffle(room)
+    quiet_val = room[:len(room) // 5] + made_noise(30, args.seed + 1000) if room else []
+    if room:
+        train += room[len(room) // 5:] * 10 + made_noise(len(train) // 10, args.seed)
+        print(f"🤫 {len(room)} مقطع دوشة حقيقي ({len(room) // 5} للاختبار) + دوشة متولّدة")
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"🎧 {len(train)} مقطع تدريب، {len(val)} للاختبار | {args.base} على {device}")
 
@@ -148,14 +179,27 @@ def main():
                 errs.append(cer(want, got))
                 if errs[-1] and len(shown) < 5:
                     shown.append(f"      «{want}» ← «{got.strip()}»")
-        return 100 * float(np.mean(errs)), shown
+        heard = wake = 0                       # noise that came out as words, and as the wake call
+        for i in range(0, len(quiet_val), args.batch):
+            ids = model.generate(batch_of(quiet_val[i:i + args.batch])[0], max_new_tokens=64, num_beams=1)
+            for got in proc.batch_decode(ids, skip_special_tokens=True):
+                heard += bool(norm(got))
+                wake += norm(args.wake_text) in norm(got)
+        err = 100 * float(np.mean(errs))
+        if quiet_val:
+            shown.append(f"      دوشة اتسمعت كلام: {heard}/{len(quiet_val)} ({wake} «{args.wake_text}»)")
+            # one number to pick the best round by: letters wrong on speech + noise heard as speech
+            return err + 100 * heard / len(quiet_val), shown
+        return err, shown
 
     def save():
         model.save_pretrained(args.out + "-hf")
         proc.save_pretrained(args.out + "-hf")
 
     best, shown = evaluate()
-    print(f"قبل التدريب: حروف غلط {best:.1f}%")
+    what = "حروف غلط" + (" + دوشة اتسمعت كلام" if quiet_val else "")
+    print(f"قبل التدريب: {what} {best:.1f}%")
+    print("\n".join(shown[-1:] if quiet_val else []))
     base_err = best
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.01)
     steps = args.epochs * ((len(train) + args.batch - 1) // args.batch)
@@ -179,7 +223,7 @@ def main():
             if step % 20 == 0:
                 print(f"   خطوة {step}/{steps}  loss {total / (i // args.batch + 1):.3f}", flush=True)
         err, shown = evaluate()
-        print(f"جولة {epoch}: حروف غلط {err:.1f}% على مقاطع الاختبار")
+        print(f"جولة {epoch}: {what} {err:.1f}% على مقاطع الاختبار")
         print("\n".join(shown))
         if err < best:
             best, saved = err, True

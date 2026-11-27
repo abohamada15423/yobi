@@ -132,7 +132,7 @@ HEARING_DEFAULTS = {
     "input_device": None,
     "output_device": None,
     "wake_model": "models/ya_yobi.onnx",   # openWakeWord model (or e.g. "hey_jarvis")
-    "wake_threshold": 0.35,
+    "wake_threshold": 0.5,
     "wake_patience": 1,
     "wake_verify_whisper": False,  # double-check hits with Whisper (new models)
     "wake_debug": False,
@@ -1280,8 +1280,11 @@ def voice_loop(island, agent, known_targets, listening_enabled):
         print_ar(f"⚠️ إعداد TTS: {e}")
 
     def _verify_wake(audio):
-        t = transcribe_local(audio, "ar", wake_model, initial_prompt="يا يوبي")
-        return _has_wake(t)
+        # the hearing model, no prompt: a «يا يوبي» prompt makes Whisper write it for any noise, and
+        # stock small misses most real calls. With the model trained on noise (v2, now models/yobi-whisper) this
+        # stopped 14 of 15 phrases and 7 of 7 room noises that fooled ya_yobi.onnx, for 5 of 148 calls.
+        model = _STT._get_local() if _STT is not None else wake_model
+        return _has_wake(transcribe_local(audio, "ar", model))
 
     recognizer = VADRecognizer(
         aggressiveness=CONFIG.get("vad_aggressiveness", 2),
@@ -1496,7 +1499,6 @@ def voice_loop(island, agent, known_targets, listening_enabled):
 
         def _audio_playing():
             try:
-                import ctypes
                 import comtypes
                 from comtypes import CLSCTX_ALL
                 from pycaw.pycaw import AudioUtilities, IAudioMeterInformation
@@ -1504,7 +1506,8 @@ def voice_loop(island, agent, known_targets, listening_enabled):
                 dev = AudioUtilities.GetSpeakers()
                 dev = getattr(dev, "_dev", dev)
                 iface = dev.Activate(IAudioMeterInformation._iid_, CLSCTX_ALL, None)
-                meter = ctypes.cast(iface, ctypes.POINTER(IAudioMeterInformation))
+                # not ctypes.cast: both wrappers would Release one reference and crash Yobi later
+                meter = iface.QueryInterface(IAudioMeterInformation)
                 return float(meter.GetPeakValue()) > 0.01
             except Exception:
                 return False

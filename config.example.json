@@ -179,7 +179,7 @@
     "agc": true,
     "aec_extra_delay_ms": 0,
     "wake_model": "models/ya_yobi.onnx",
-    "wake_threshold": 0.35,
+    "wake_threshold": 0.5,
     "wake_patience": 1,
     "wake_verify_whisper": false,
     "wake_debug": true,

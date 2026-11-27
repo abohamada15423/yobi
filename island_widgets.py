@@ -230,7 +230,8 @@ class IslandWidgets:
             dev = AudioUtilities.GetSpeakers()
             dev = getattr(dev, "_dev", dev)
             iface = dev.Activate(IAudioMeterInformation._iid_, CLSCTX_ALL, None)
-            meter = ctypes.cast(iface, ctypes.POINTER(IAudioMeterInformation))
+            # not ctypes.cast: both wrappers would Release one reference and crash Yobi later
+            meter = iface.QueryInterface(IAudioMeterInformation)
         except Exception:
             pass
         return vol, meter

@@ -57,7 +57,6 @@ def _get_endpoint_volume():
     try:
         import comtypes
         from comtypes import CLSCTX_ALL
-        from ctypes import cast, POINTER
         from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
         try:
             comtypes.CoInitialize()
@@ -68,7 +67,7 @@ def _get_endpoint_volume():
             return devices.EndpointVolume
         raw_dev = getattr(devices, "_dev", devices)
         interface = raw_dev.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-        return cast(interface, POINTER(IAudioEndpointVolume))
+        return interface.QueryInterface(IAudioEndpointVolume)   # cast would over-release it
     except Exception:
         return None
 
